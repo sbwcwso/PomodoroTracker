@@ -11,13 +11,56 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <nav class="app-menu" aria-label="应用菜单">
+      <span class="app-menu__brand">🍅</span>
+      <details class="menu-group">
+        <summary>文件</summary>
+        <div class="menu-popup">
+          <button data-menu-action="settings">设置 <kbd>Ctrl+,</kbd></button>
+          <hr />
+          <button data-app-action="quit">退出</button>
+        </div>
+      </details>
+      <details class="menu-group">
+        <summary>编辑</summary>
+        <div class="menu-popup">
+          <button data-edit-command="undo">撤销 <kbd>Ctrl+Z</kbd></button>
+          <button data-edit-command="redo">重做 <kbd>Ctrl+Y</kbd></button>
+          <hr />
+          <button data-edit-command="cut">剪切 <kbd>Ctrl+X</kbd></button>
+          <button data-edit-command="copy">复制 <kbd>Ctrl+C</kbd></button>
+          <button data-edit-command="paste">粘贴 <kbd>Ctrl+V</kbd></button>
+          <button data-edit-command="selectAll">全选 <kbd>Ctrl+A</kbd></button>
+        </div>
+      </details>
+      <details class="menu-group">
+        <summary>查看</summary>
+        <div class="menu-popup">
+          <button data-zoom-delta="0.1">放大 <kbd>Ctrl++</kbd></button>
+          <button data-zoom-delta="-0.1">缩小 <kbd>Ctrl+-</kbd></button>
+          <button data-zoom-reset>重置缩放 <kbd>Ctrl+0</kbd></button>
+          <hr />
+          <button data-app-action="reload">重新加载</button>
+          <button data-app-action="fullscreen">切换全屏</button>
+        </div>
+      </details>
+      <details class="menu-group">
+        <summary>帮助</summary>
+        <div class="menu-popup">
+          <button data-menu-action="about">关于番茄事项</button>
+        </div>
+      </details>
+    </nav>
     <header class="topbar">
       <div>
         <span class="eyebrow">POMODORO TRACKER</span>
         <h1>今天，专注一件事。</h1>
       </div>
-      <div class="today">
-        <span>今日专注</span><strong id="today-summary">0 次 · 0 分钟</strong>
+      <div class="header-actions">
+        <button id="open-settings" class="settings-button" title="设置（Ctrl+,）">⚙ 设置</button>
+        <div class="today">
+          <span>今日专注</span><strong id="today-summary">0 次 · 0 分钟</strong>
+        </div>
       </div>
     </header>
     <main>
@@ -60,6 +103,29 @@
           <button type="button" id="cancel-dialog">取消</button
           ><button class="primary" type="submit">保存</button>
         </div>
+      </form>
+    </dialog>
+    <dialog id="settings-dialog">
+      <form method="dialog">
+        <h2>设置</h2>
+        <label for="language-select">界面语言</label>
+        <select id="language-select" disabled>
+          <option value="zh-CN" selected>简体中文（默认）</option>
+        </select>
+        <label for="zoom-range">界面缩放</label>
+        <div class="zoom-setting">
+          <input id="zoom-range" type="range" min="50" max="200" step="10" value="100" />
+          <strong id="zoom-value">100%</strong>
+        </div>
+        <p class="settings-hint">快捷键：Ctrl + + 放大，Ctrl + - 缩小，Ctrl + 0 重置。</p>
+        <div class="dialog-actions"><button class="primary" type="submit">完成</button></div>
+      </form>
+    </dialog>
+    <dialog id="about-dialog">
+      <form method="dialog">
+        <h2>关于番茄事项</h2>
+        <p>支持分级事项和本地记录的专注工具。</p>
+        <div class="dialog-actions"><button class="primary" type="submit">确定</button></div>
       </form>
     </dialog>
     <script src="renderer.js"></script>

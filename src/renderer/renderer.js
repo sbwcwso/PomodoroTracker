@@ -17,7 +17,19 @@ const elements = {
   parentId: document.querySelector('#parent-id'),
   title: document.querySelector('#task-title'),
   notes: document.querySelector('#task-notes'),
+  settingsDialog: document.querySelector('#settings-dialog'),
+  zoomRange: document.querySelector('#zoom-range'),
+  zoomValue: document.querySelector('#zoom-value'),
 };
+
+function showSettings(config) {
+  const percent = Math.round(config.zoomFactor * 100);
+  elements.zoomRange.value = percent;
+  elements.zoomValue.textContent = `${percent}%`;
+  if (!elements.settingsDialog.open) {
+    elements.settingsDialog.showModal();
+  }
+}
 
 function escapeHtml(value) {
   const div = document.createElement('div');
@@ -183,5 +195,62 @@ document.querySelector('#timer-reset').addEventListener('click', () => {
 if (Notification.permission === 'default') {
   Notification.requestPermission();
 }
+document.querySelector('#open-settings').addEventListener('click', async () => {
+  showSettings(await window.pomodoro.getSettings());
+});
+elements.zoomRange.addEventListener('input', async () => {
+  const config = await window.pomodoro.setZoomFactor(Number(elements.zoomRange.value) / 100);
+  showSettings(config);
+});
+window.pomodoro.onSettingsChanged((config) => {
+  const percent = Math.round(config.zoomFactor * 100);
+  elements.zoomRange.value = percent;
+  elements.zoomValue.textContent = `${percent}%`;
+});
+window.pomodoro.onOpenSettings(async () => showSettings(await window.pomodoro.getSettings()));
+window.pomodoro.onOpenAbout(() => document.querySelector('#about-dialog').showModal());
+document.querySelector('.app-menu').addEventListener('click', async (event) => {
+  const button = event.target.closest('button');
+  if (!button) {
+    return;
+  }
+  if (button.dataset.menuAction === 'settings') {
+    showSettings(await window.pomodoro.getSettings());
+  }
+  if (button.dataset.menuAction === 'about') {
+    document.querySelector('#about-dialog').showModal();
+  }
+  if (button.dataset.appAction) {
+    await window.pomodoro.performAppAction(button.dataset.appAction);
+  }
+  if (button.dataset.editCommand) {
+    document.execCommand(button.dataset.editCommand);
+  }
+  if (button.dataset.zoomDelta) {
+    const config = await window.pomodoro.getSettings();
+    await window.pomodoro.setZoomFactor(config.zoomFactor + Number(button.dataset.zoomDelta));
+  }
+  if (button.hasAttribute('data-zoom-reset')) {
+    await window.pomodoro.setZoomFactor(1);
+  }
+  button.closest('details')?.removeAttribute('open');
+});
+document.querySelectorAll('.menu-group').forEach((menu) => {
+  menu.addEventListener('toggle', () => {
+    if (!menu.open) {
+      return;
+    }
+    document.querySelectorAll('.menu-group').forEach((other) => {
+      if (other !== menu) {
+        other.removeAttribute('open');
+      }
+    });
+  });
+});
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('.app-menu')) {
+    document.querySelectorAll('.menu-group').forEach((menu) => menu.removeAttribute('open'));
+  }
+});
 refresh();
 renderTimer();

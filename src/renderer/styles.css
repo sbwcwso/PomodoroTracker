@@ -12,6 +12,74 @@ body {
   min-height: 100vh;
   background: radial-gradient(circle at 90% 0, #ead6c4, transparent 32%), #f4f0e7;
 }
+.app-menu {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 10px;
+  background: #f8f5ee;
+  border-bottom: 1px solid #d8d3c8;
+  box-shadow: 0 2px 8px rgba(55, 45, 30, 0.05);
+  user-select: none;
+}
+.app-menu__brand {
+  margin: 0 8px 0 4px;
+}
+.menu-group {
+  position: relative;
+}
+.menu-group summary {
+  list-style: none;
+  padding: 7px 11px;
+  border-radius: 5px;
+  cursor: default;
+  font-size: 13px;
+}
+.menu-group summary::-webkit-details-marker {
+  display: none;
+}
+.menu-group[open] summary,
+.menu-group summary:hover {
+  background: #e9e4da;
+}
+.menu-popup {
+  position: absolute;
+  top: 32px;
+  left: 0;
+  min-width: 220px;
+  padding: 6px;
+  background: #fffdf8;
+  border: 1px solid #cbc5b9;
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(35, 30, 23, 0.2);
+}
+.menu-popup button {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  white-space: nowrap;
+}
+.menu-popup button:hover {
+  background: #eee9df;
+}
+.menu-popup hr {
+  border: 0;
+  border-top: 1px solid #ddd7cc;
+  margin: 5px;
+}
+.menu-popup kbd {
+  margin-left: 24px;
+  color: #77736b;
+  font: inherit;
+  font-size: 11px;
+}
 button,
 input,
 textarea,
@@ -45,6 +113,14 @@ h1 {
 .today {
   text-align: right;
   color: #77766f;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.settings-button {
+  background: rgba(255, 255, 255, 0.55);
 }
 .today strong {
   display: block;
@@ -199,6 +275,19 @@ dialog {
 }
 dialog::backdrop {
   background: #1b1c1880;
+}
+.zoom-setting {
+  display: grid;
+  grid-template-columns: 1fr 55px;
+  gap: 14px;
+  align-items: center;
+}
+.zoom-setting input {
+  width: 100%;
+}
+.settings-hint {
+  color: #88847b;
+  font-size: 13px;
 }
 form {
   padding: 28px;
