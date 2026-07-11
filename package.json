@@ -1,0 +1,46 @@
+{
+  "name": "pomodoro-tracker",
+  "version": "0.1.0",
+  "description": "支持分级事项的本地番茄钟记录工具",
+  "main": "src/main/main.js",
+  "type": "commonjs",
+  "scripts": {
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "start": "electron .",
+    "check": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "pretest": "npm rebuild better-sqlite3",
+    "test": "node --test",
+    "posttest": "electron-rebuild -f -w better-sqlite3",
+    "dist:win": "electron-builder --win nsis"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.31.0",
+    "electron": "^37.10.3",
+    "electron-builder": "^26.0.12",
+    "eslint": "^9.31.0",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-jsdoc": "^50.8.0",
+    "prettier": "^3.6.2"
+  },
+  "build": {
+    "appId": "dev.pomodoro.tracker",
+    "productName": "番茄事项",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/*.node"
+    ],
+    "win": {
+      "target": "nsis"
+    }
+  }
+}

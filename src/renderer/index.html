@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self'; script-src 'self'"
+    />
+    <title>番茄事项</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <span class="eyebrow">POMODORO TRACKER</span>
+        <h1>今天，专注一件事。</h1>
+      </div>
+      <div class="today">
+        <span>今日专注</span><strong id="today-summary">0 次 · 0 分钟</strong>
+      </div>
+    </header>
+    <main>
+      <section class="panel task-panel">
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">PROJECTS</span>
+            <h2>事项清单</h2>
+          </div>
+          <button id="new-root" class="primary">＋ 新建大项</button>
+        </div>
+        <div id="empty-state" class="empty">先创建一个大项，例如「CS188」</div>
+        <div id="task-tree" class="task-tree"></div>
+      </section>
+      <section class="panel timer-panel">
+        <span class="eyebrow">FOCUS TIMER</span>
+        <label for="task-select">本次专注事项</label>
+        <select id="task-select">
+          <option value="">请选择事项</option>
+        </select>
+        <div id="timer" class="timer">25:00</div>
+        <div class="duration-row">
+          <button data-minutes="15">15</button><button class="selected" data-minutes="25">25</button
+          ><button data-minutes="45">45</button>
+        </div>
+        <button id="timer-action" class="timer-action">开始专注</button>
+        <button id="timer-reset" class="text-button">重置</button>
+        <p id="timer-hint">选择事项后开始计时，完成后自动记入数据库。</p>
+      </section>
+    </main>
+    <dialog id="task-dialog">
+      <form id="task-form" method="dialog">
+        <h2 id="dialog-title">新建事项</h2>
+        <input type="hidden" id="parent-id" />
+        <label for="task-title">名称</label
+        ><input id="task-title" maxlength="100" required placeholder="例如：CS188" />
+        <label for="task-notes">备注（可选）</label
+        ><textarea id="task-notes" rows="3" placeholder="目标、资料或下一步"></textarea>
+        <div class="dialog-actions">
+          <button type="button" id="cancel-dialog">取消</button
+          ><button class="primary" type="submit">保存</button>
+        </div>
+      </form>
+    </dialog>
+    <script src="renderer.js"></script>
+  </body>
+</html>
