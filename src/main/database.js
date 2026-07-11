@@ -100,6 +100,7 @@ class AppDatabase {
   }
 
   close() {
+    this.db.pragma('wal_checkpoint(TRUNCATE)');
     this.db.close();
   }
 }

@@ -9,6 +9,17 @@ contextBridge.exposeInMainWorld('pomodoro', {
   getSummary: () => ipcRenderer.invoke('summary:get'),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setZoomFactor: (value) => ipcRenderer.invoke('settings:setZoom', value),
+  setDurations: (value) => ipcRenderer.invoke('settings:setDurations', value),
+  setTimerPopupAlwaysOnTop: (value) =>
+    ipcRenderer.invoke('settings:setTimerPopupAlwaysOnTop', value),
+  chooseDatabasePath: () => ipcRenderer.invoke('settings:chooseDatabasePath'),
+  chooseSoundPath: (kind) => ipcRenderer.invoke('settings:chooseSoundPath', kind),
+  clearSoundPath: (kind) => ipcRenderer.invoke('settings:clearSoundPath', kind),
+  showTimerPopup: (timer) => ipcRenderer.invoke('timer-popup:show', timer),
+  updateTimerPopup: (timer) => ipcRenderer.invoke('timer-popup:update', timer),
+  hideTimerPopup: () => ipcRenderer.invoke('timer-popup:hide'),
+  onTimerPopupUpdate: (callback) =>
+    ipcRenderer.on('timer-popup:update', (_event, value) => callback(value)),
   onSettingsChanged: (callback) =>
     ipcRenderer.on('settings:changed', (_event, value) => callback(value)),
   onOpenSettings: (callback) => ipcRenderer.on('settings:open', callback),

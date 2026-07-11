@@ -15,23 +15,27 @@
     "dist:win": "electron-builder --win nsis"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12.0"
   },
   "dependencies": {
     "better-sqlite3": "^12.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.31.0",
-    "electron": "^37.10.3",
+    "electron": "^43.1.0",
     "electron-builder": "^26.0.12",
     "eslint": "^9.31.0",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-jsdoc": "^50.8.0",
     "prettier": "^3.6.2"
   },
+  "overrides": {
+    "@electron/asar": "^4.2.0",
+    "@electron/get": "^5.0.0"
+  },
   "build": {
     "appId": "dev.pomodoro.tracker",
-    "productName": "番茄事项",
+    "productName": "番茄钟",
     "files": [
       "src/**/*",
       "package.json"
