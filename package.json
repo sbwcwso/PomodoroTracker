@@ -22,16 +22,12 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.31.0",
-    "electron": "^43.1.0",
+    "electron": "^37.10.3",
     "electron-builder": "^26.0.12",
     "eslint": "^9.31.0",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-jsdoc": "^50.8.0",
     "prettier": "^3.6.2"
-  },
-  "overrides": {
-    "@electron/asar": "^4.2.0",
-    "@electron/get": "^5.0.0"
   },
   "build": {
     "appId": "dev.pomodoro.tracker",

@@ -3,15 +3,27 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('pomodoro', {
   listTasks: () => ipcRenderer.invoke('tasks:list'),
   createTask: (input) => ipcRenderer.invoke('tasks:create', input),
+  renameTask: (id, title) => ipcRenderer.invoke('tasks:rename', id, title),
+  setDefaultGroup: (id) => ipcRenderer.invoke('tasks:setDefaultGroup', id),
+  setGroupCollapsed: (id, collapsed) =>
+    ipcRenderer.invoke('tasks:setGroupCollapsed', id, collapsed),
+  moveTasksToGroup: (taskIds, groupId) => ipcRenderer.invoke('tasks:moveToGroup', taskIds, groupId),
   toggleTask: (id) => ipcRenderer.invoke('tasks:toggle', id),
   deleteTask: (id) => ipcRenderer.invoke('tasks:delete', id),
+  setTaskTimerSettings: (id, input) => ipcRenderer.invoke('tasks:setTimerSettings', id, input),
   recordSession: (input) => ipcRenderer.invoke('sessions:record', input),
+  updateSessionNote: (sessionId, note) =>
+    ipcRenderer.invoke('sessions:updateNote', sessionId, note),
+  listTaskSessions: (taskId) => ipcRenderer.invoke('sessions:listForTask', taskId),
   getSummary: () => ipcRenderer.invoke('summary:get'),
+  getDashboard: (input) => ipcRenderer.invoke('dashboard:get', input),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setZoomFactor: (value) => ipcRenderer.invoke('settings:setZoom', value),
   setDurations: (value) => ipcRenderer.invoke('settings:setDurations', value),
   setTimerPopupAlwaysOnTop: (value) =>
     ipcRenderer.invoke('settings:setTimerPopupAlwaysOnTop', value),
+  setWeekStartDay: (value) => ipcRenderer.invoke('settings:setWeekStartDay', value),
+  setTaskGrouping: (value) => ipcRenderer.invoke('settings:setTaskGrouping', value),
   chooseDatabasePath: () => ipcRenderer.invoke('settings:chooseDatabasePath'),
   chooseSoundPath: (kind) => ipcRenderer.invoke('settings:chooseSoundPath', kind),
   clearSoundPath: (kind) => ipcRenderer.invoke('settings:clearSoundPath', kind),
@@ -20,6 +32,8 @@ contextBridge.exposeInMainWorld('pomodoro', {
   hideTimerPopup: () => ipcRenderer.invoke('timer-popup:hide'),
   onTimerPopupUpdate: (callback) =>
     ipcRenderer.on('timer-popup:update', (_event, value) => callback(value)),
+  onTimerPopupVisibility: (callback) =>
+    ipcRenderer.on('timer-popup:visibility', (_event, visible) => callback(visible)),
   onSettingsChanged: (callback) =>
     ipcRenderer.on('settings:changed', (_event, value) => callback(value)),
   onOpenSettings: (callback) => ipcRenderer.on('settings:open', callback),

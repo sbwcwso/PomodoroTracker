@@ -1,16 +1,77 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const DEFAULT_TASK_GROUP = Object.freeze({ id: 'default', name: '默认分组', collapsed: false });
+
 const DEFAULT_CONFIG = Object.freeze({
   language: 'zh-CN',
   zoomFactor: 1,
-  focusDurations: [15, 25, 45],
-  breakDurations: [5, 10],
+  focusDurations: [25],
+  breakDurations: [5],
   timerPopupAlwaysOnTop: true,
   databasePath: '',
   focusEndSoundPath: '',
   breakEndSoundPath: '',
+  windowBounds: null,
+  windowMaximized: false,
+  timerPopupPosition: null,
+  weekStartDay: 1,
+  taskGroups: [DEFAULT_TASK_GROUP],
+  defaultTaskGroupId: 'default',
+  taskGroupAssignments: {},
 });
+
+function normalizeTaskGrouping(groups, assignments, defaultGroupId = 'default') {
+  const sourceGroups = Array.isArray(groups) ? groups : [];
+  const normalizedGroups = [];
+  const seen = new Set();
+  sourceGroups.forEach((group) => {
+    const id = String(group?.id || '').trim();
+    const name = String(group?.name || '').trim();
+    if (!id || !name || seen.has(id)) {
+      return;
+    }
+    seen.add(id);
+    normalizedGroups.push({ id, name: name.slice(0, 40), collapsed: group.collapsed === true });
+  });
+  if (normalizedGroups.length === 0) {
+    normalizedGroups.push({ ...DEFAULT_TASK_GROUP });
+    seen.add(DEFAULT_TASK_GROUP.id);
+  }
+  const normalizedDefaultGroupId = seen.has(String(defaultGroupId))
+    ? String(defaultGroupId)
+    : normalizedGroups[0].id;
+  const normalizedAssignments = {};
+  if (assignments && typeof assignments === 'object' && !Array.isArray(assignments)) {
+    Object.entries(assignments).forEach(([taskId, groupId]) => {
+      if (/^\d+$/.test(taskId) && seen.has(String(groupId))) {
+        normalizedAssignments[taskId] = String(groupId);
+      }
+    });
+  }
+  return {
+    groups: normalizedGroups,
+    defaultGroupId: normalizedDefaultGroupId,
+    assignments: normalizedAssignments,
+  };
+}
+
+function normalizeWindowBounds(value) {
+  if (!value || !Number.isFinite(value.width) || !Number.isFinite(value.height)) {
+    return null;
+  }
+  return {
+    width: Math.round(value.width),
+    height: Math.round(value.height),
+  };
+}
+
+function normalizeWindowPosition(value) {
+  if (!value || !Number.isFinite(value.x) || !Number.isFinite(value.y)) {
+    return null;
+  }
+  return { x: Math.round(value.x), y: Math.round(value.y) };
+}
 
 function normalizeDurations(value, fallback) {
   const durations = (Array.isArray(value) ? value : String(value || '').split(','))
@@ -31,6 +92,11 @@ class ConfigStore {
   load() {
     try {
       const parsed = JSON.parse(fs.readFileSync(this.filePath, 'utf8'));
+      const taskGrouping = normalizeTaskGrouping(
+        parsed.taskGroups,
+        parsed.taskGroupAssignments,
+        parsed.defaultTaskGroupId,
+      );
       return {
         ...DEFAULT_CONFIG,
         ...parsed,
@@ -43,6 +109,18 @@ class ConfigStore {
           typeof parsed.focusEndSoundPath === 'string' ? parsed.focusEndSoundPath : '',
         breakEndSoundPath:
           typeof parsed.breakEndSoundPath === 'string' ? parsed.breakEndSoundPath : '',
+        windowBounds: normalizeWindowBounds(parsed.windowBounds),
+        windowMaximized: parsed.windowMaximized === true,
+        timerPopupPosition: normalizeWindowPosition(parsed.timerPopupPosition),
+        weekStartDay:
+          Number.isInteger(parsed.weekStartDay) &&
+          parsed.weekStartDay >= 0 &&
+          parsed.weekStartDay <= 6
+            ? parsed.weekStartDay
+            : 1,
+        taskGroups: taskGrouping.groups,
+        defaultTaskGroupId: taskGrouping.defaultGroupId,
+        taskGroupAssignments: taskGrouping.assignments,
       };
     } catch {
       return { ...DEFAULT_CONFIG };
@@ -81,6 +159,35 @@ class ConfigStore {
   setSoundPath(kind, value) {
     const key = kind === 'breakEnd' ? 'breakEndSoundPath' : 'focusEndSoundPath';
     this.config[key] = value ? path.resolve(String(value)) : '';
+    this.save();
+    return this.getAll();
+  }
+
+  setWindowState(bounds, maximized) {
+    this.config.windowBounds = normalizeWindowBounds(bounds);
+    this.config.windowMaximized = maximized === true;
+    this.save();
+    return this.getAll();
+  }
+
+  setTimerPopupPosition(position) {
+    this.config.timerPopupPosition = normalizeWindowPosition(position);
+    this.save();
+    return this.getAll();
+  }
+
+  setWeekStartDay(value) {
+    const day = Number(value);
+    this.config.weekStartDay = Number.isInteger(day) && day >= 0 && day <= 6 ? day : 1;
+    this.save();
+    return this.getAll();
+  }
+
+  setTaskGrouping({ groups, defaultGroupId, assignments }) {
+    const normalized = normalizeTaskGrouping(groups, assignments, defaultGroupId);
+    this.config.taskGroups = normalized.groups;
+    this.config.defaultTaskGroupId = normalized.defaultGroupId;
+    this.config.taskGroupAssignments = normalized.assignments;
     this.save();
     return this.getAll();
   }

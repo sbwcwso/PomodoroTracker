@@ -11,6 +11,9 @@ test('persists zoom and defaults to Chinese', () => {
   const store = new ConfigStore(filePath);
   assert.equal(store.getAll().language, 'zh-CN');
   assert.equal(store.getAll().timerPopupAlwaysOnTop, true);
+  assert.equal(store.getAll().weekStartDay, 1);
+  assert.deepEqual(store.getAll().focusDurations, [25]);
+  assert.deepEqual(store.getAll().breakDurations, [5]);
   store.setZoomFactor(1.3);
   assert.equal(new ConfigStore(filePath).getAll().zoomFactor, 1.3);
   fs.rmSync(directory, { recursive: true });
@@ -65,5 +68,56 @@ test('persists configurable timer durations', () => {
   const config = new ConfigStore(filePath).getAll();
   assert.deepEqual(config.focusDurations, [20, 30, 40]);
   assert.deepEqual(config.breakDurations, [5, 10]);
+  fs.rmSync(directory, { recursive: true });
+});
+
+test('persists main window size and maximized state', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'pomodoro-config-'));
+  const filePath = path.join(directory, 'config.json');
+  const store = new ConfigStore(filePath);
+  store.setWindowState({ width: 1360, height: 900 }, true);
+  const config = new ConfigStore(filePath).getAll();
+  assert.deepEqual(config.windowBounds, { width: 1360, height: 900 });
+  assert.equal(config.windowMaximized, true);
+  fs.rmSync(directory, { recursive: true });
+});
+
+test('persists timer popup position', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'pomodoro-config-'));
+  const filePath = path.join(directory, 'config.json');
+  const store = new ConfigStore(filePath);
+  store.setTimerPopupPosition({ x: 320, y: 180 });
+  assert.deepEqual(new ConfigStore(filePath).getAll().timerPopupPosition, { x: 320, y: 180 });
+  fs.rmSync(directory, { recursive: true });
+});
+
+test('persists the first day of the week', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'pomodoro-config-'));
+  const filePath = path.join(directory, 'config.json');
+  const store = new ConfigStore(filePath);
+  store.setWeekStartDay(0);
+  assert.equal(new ConfigStore(filePath).getAll().weekStartDay, 0);
+  fs.rmSync(directory, { recursive: true });
+});
+
+test('persists view-only task groups and keeps the default group', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'pomodoro-config-'));
+  const filePath = path.join(directory, 'config.json');
+  const store = new ConfigStore(filePath);
+  store.setTaskGrouping({
+    groups: [
+      { id: 'default', name: '可被忽略的名称', collapsed: true },
+      { id: 'study', name: '学习', collapsed: true },
+    ],
+    defaultGroupId: 'study',
+    assignments: { 12: 'study', 13: 'missing' },
+  });
+  const config = new ConfigStore(filePath).getAll();
+  assert.deepEqual(config.taskGroups, [
+    { id: 'default', name: '可被忽略的名称', collapsed: true },
+    { id: 'study', name: '学习', collapsed: true },
+  ]);
+  assert.equal(config.defaultTaskGroupId, 'study');
+  assert.deepEqual(config.taskGroupAssignments, { 12: 'study' });
   fs.rmSync(directory, { recursive: true });
 });

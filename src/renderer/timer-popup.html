@@ -11,9 +11,14 @@
     <link rel="stylesheet" href="timer-popup.css" />
   </head>
   <body>
-    <div id="task-title" class="task-title">事项</div>
-    <div id="status" class="status">专注中</div>
-    <div id="time" class="time">25:00</div>
+    <main class="timer-card">
+      <button id="close-popup" class="close-button" type="button" aria-label="关闭计时小窗">
+        <span aria-hidden="true"></span>
+      </button>
+      <div id="task-title" class="task-title">事项</div>
+      <div id="status" class="status">专注中</div>
+      <div id="time" class="time">25:00</div>
+    </main>
     <script src="timer-popup.js"></script>
   </body>
 </html>

@@ -51,14 +51,70 @@
         </div>
       </details>
     </nav>
+    <nav class="view-tabs" role="tablist" aria-label="主要页面">
+      <button
+        class="view-tab active"
+        type="button"
+        role="tab"
+        data-view="tasks"
+        aria-selected="true"
+      >
+        事项
+      </button>
+      <button class="view-tab" type="button" role="tab" data-view="dashboard" aria-selected="false">
+        数据看板
+      </button>
+    </nav>
+    <aside id="active-timer" class="active-timer" aria-live="polite" hidden>
+      <span class="active-timer__pulse" aria-hidden="true"></span>
+      <div class="active-timer__details">
+        <span id="active-timer-phase" class="active-timer__phase">专注中</span>
+        <strong id="active-timer-title" class="active-timer__title">未选择事项</strong>
+      </div>
+      <time id="active-timer-time" class="active-timer__time">25:00</time>
+      <button id="open-timer-popup" class="active-timer__open" type="button">打开小窗</button>
+      <button id="interrupt-timer" class="active-timer__interrupt" type="button">打断</button>
+    </aside>
     <main>
-      <section class="panel task-panel">
+      <section id="tasks-view" class="app-view panel task-panel">
         <div id="task-board" class="task-board">
           <div class="root-column" aria-label="大项">
+            <div class="group-toolbar" role="toolbar" aria-label="事项分组操作">
+              <span class="group-toolbar__title">分组</span>
+              <button id="add-group" type="button" title="新建分组" aria-label="新建分组">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M3.5 7.5h6l2-2h9v13h-17zM12 10v6m-3-3h6" />
+                </svg>
+              </button>
+              <button id="collapse-groups" type="button" title="全部折叠" aria-label="全部折叠">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m7 14 5-5 5 5M7 19l5-5 5 5" />
+                </svg>
+              </button>
+              <button
+                id="select-groups"
+                type="button"
+                title="进入选择状态"
+                aria-label="进入选择状态"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M9 6h11M9 12h11M9 18h11M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5 2.5-2.5M3.5 18l1.5 1.5 2.5-2.5"
+                  />
+                </svg>
+              </button>
+              <button
+                id="delete-groups"
+                type="button"
+                title="删除选中事项或完整分组"
+                aria-label="删除选中事项或完整分组"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5" />
+                </svg>
+              </button>
+            </div>
             <div id="root-list" class="root-list"></div>
-            <button id="new-root" class="new-root-button" title="新建大项" aria-label="新建大项">
-              +
-            </button>
           </div>
           <div class="child-column" aria-label="子项">
             <div id="empty-state" class="empty compact">暂无子项</div>
@@ -66,10 +122,96 @@
           </div>
         </div>
       </section>
+      <section id="dashboard-view" class="app-view dashboard-view" hidden>
+        <header class="dashboard-header">
+          <div>
+            <span class="eyebrow">数据看板</span>
+            <h1 id="dashboard-title">日看板</h1>
+            <p id="dashboard-date"></p>
+          </div>
+        </header>
+        <div class="dashboard-toolbar">
+          <div class="dashboard-period" role="group" aria-label="看板周期">
+            <button class="active" type="button" data-dashboard-period="day">日看板</button>
+            <button type="button" data-dashboard-period="week">周看板</button>
+            <button type="button" data-dashboard-period="year">年看板</button>
+          </div>
+          <label class="dashboard-control" for="dashboard-anchor-date">
+            <span id="dashboard-date-label">选择日期</span>
+            <input id="dashboard-anchor-date" type="date" />
+          </label>
+          <label class="dashboard-control" for="dashboard-depth">
+            <span>显示层级</span>
+            <select id="dashboard-depth">
+              <option value="1">仅顶层（如 CS）</option>
+              <option value="2" selected>显示到第 2 层（如 CS / AI）</option>
+              <option value="3">显示到第 3 层</option>
+              <option value="all">显示全部层级</option>
+            </select>
+          </label>
+          <button id="dashboard-today" class="dashboard-today" type="button">回到当前时间</button>
+        </div>
+        <div class="dashboard-stats">
+          <article class="dashboard-stat">
+            <span id="dashboard-total-label">当日专注</span>
+            <strong id="dashboard-total-time">0 分钟</strong>
+          </article>
+          <article class="dashboard-stat">
+            <span>完整番茄</span>
+            <strong id="dashboard-completed-count">0</strong>
+          </article>
+          <article class="dashboard-stat">
+            <span>被打断次数</span>
+            <strong id="dashboard-interrupted-count">0</strong>
+          </article>
+        </div>
+        <div class="dashboard-grid">
+          <article class="dashboard-panel dashboard-panel--allocation">
+            <div class="dashboard-panel__heading">
+              <div>
+                <h2>条目时间分布</h2>
+                <p id="dashboard-allocation-description">嵌套圆环表示父子条目的包含关系</p>
+              </div>
+            </div>
+            <div class="donut-layout">
+              <div class="donut-chart-wrap">
+                <svg
+                  id="dashboard-donut"
+                  class="donut-chart"
+                  viewBox="0 0 320 320"
+                  role="img"
+                  aria-label="今日各条目专注时间占比"
+                ></svg>
+                <div class="donut-center" aria-hidden="true">
+                  <strong id="donut-total">0</strong>
+                  <span id="donut-unit">分钟</span>
+                </div>
+              </div>
+              <div id="dashboard-legend" class="dashboard-legend"></div>
+            </div>
+          </article>
+          <article class="dashboard-panel dashboard-panel--trend">
+            <div class="dashboard-panel__heading">
+              <div>
+                <h2 id="dashboard-trend-title">当日时段分布</h2>
+                <p id="dashboard-trend-description">包含完整番茄和被打断的实际时长</p>
+              </div>
+            </div>
+            <div
+              id="dashboard-trend"
+              class="dashboard-trend"
+              role="img"
+              aria-label="近 7 天专注时间柱状图"
+            ></div>
+          </article>
+        </div>
+      </section>
     </main>
     <div id="task-context-menu" class="context-menu" hidden>
       <button data-context-action="child">新建子项</button>
       <button data-context-action="toggle">标记完成</button>
+      <button data-context-action="timer-settings">设置专属计时时长</button>
+      <button data-context-action="history">查看专注记录</button>
       <button data-context-action="expand">展开所有子项</button>
       <button data-context-action="collapse">折叠所有子项</button>
       <button data-context-action="delete">删除</button>
@@ -80,11 +222,107 @@
         <input type="hidden" id="parent-id" />
         <label for="task-title">名称</label
         ><input id="task-title" maxlength="100" required placeholder="例如：学习计划" />
-        <label for="task-notes">备注（可选）</label
+        <label id="task-notes-label" for="task-notes">备注（可选）</label
         ><textarea id="task-notes" rows="3" placeholder="补充说明、目标或下一步"></textarea>
         <div class="dialog-actions">
           <button type="button" id="cancel-dialog">取消</button
-          ><button class="primary" type="submit">保存</button>
+          ><button id="task-submit" class="primary" type="submit">保存</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="group-dialog">
+      <form id="group-form" method="dialog">
+        <h2 id="group-dialog-title">新建分组</h2>
+        <label for="group-name">分组名称</label>
+        <input id="group-name" maxlength="40" required placeholder="例如：学习与成长" />
+        <div class="dialog-actions">
+          <button type="button" id="cancel-group-dialog">取消</button>
+          <button id="group-submit" class="primary" type="submit">创建</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="task-timer-dialog">
+      <form id="task-timer-form" method="dialog">
+        <h2>专属计时时长</h2>
+        <p id="task-timer-name" class="dialog-description"></p>
+        <input id="task-timer-id" type="hidden" />
+        <label for="task-focus-minutes">专注时长（分钟）</label>
+        <input id="task-focus-minutes" type="number" min="1" max="1440" step="1" />
+        <label for="task-break-minutes">休息时长（分钟）</label>
+        <input id="task-break-minutes" type="number" min="1" max="1440" step="1" />
+        <p class="settings-hint">留空即继承全局默认时长。</p>
+        <div class="dialog-actions dialog-actions--split">
+          <button id="reset-task-timer" type="button">恢复默认</button>
+          <span></span>
+          <button id="cancel-task-timer" type="button">取消</button>
+          <button class="primary" type="submit">保存</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="task-history-dialog" class="history-dialog">
+      <form method="dialog">
+        <div class="history-dialog__header">
+          <div>
+            <span class="eyebrow">专注历史</span>
+            <h2 id="task-history-title">事项记录</h2>
+          </div>
+          <button class="history-dialog__close" value="close" aria-label="关闭">×</button>
+        </div>
+        <div id="task-history-content" class="history-content"></div>
+      </form>
+    </dialog>
+    <dialog id="interrupt-confirm-dialog" class="confirm-dialog">
+      <form method="dialog">
+        <div class="confirm-dialog__icon" aria-hidden="true">!</div>
+        <div class="confirm-dialog__content">
+          <h2 id="interrupt-confirm-title">打断当前番茄？</h2>
+          <p id="interrupt-confirm-message"></p>
+        </div>
+        <div class="dialog-actions confirm-dialog__actions">
+          <button value="cancel">继续计时</button>
+          <button class="danger" value="confirm">确认打断</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="action-dialog" class="confirm-dialog action-dialog" data-mode="delete">
+      <form method="dialog">
+        <div class="confirm-dialog__icon action-dialog__icon" aria-hidden="true">
+          <svg class="action-dialog__icon-delete" viewBox="0 0 24 24">
+            <path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5" />
+          </svg>
+          <svg class="action-dialog__icon-notice" viewBox="0 0 24 24">
+            <path d="M12 8v5m0 3.5v.5M4.5 19h15L12 5z" />
+          </svg>
+        </div>
+        <div class="confirm-dialog__content">
+          <span id="action-dialog-eyebrow" class="confirm-dialog__eyebrow">删除所选内容</span>
+          <h2 id="action-dialog-title">确认删除？</h2>
+          <p id="action-dialog-message"></p>
+          <div id="action-dialog-detail" class="action-dialog__detail">
+            删除后无法恢复，请确认选择无误。
+          </div>
+        </div>
+        <div class="dialog-actions confirm-dialog__actions">
+          <button id="action-dialog-cancel" value="cancel">保留这些内容</button>
+          <button id="action-dialog-confirm" class="danger" value="confirm">确认删除</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="session-note-dialog" class="session-note-dialog">
+      <form id="session-note-form" method="dialog">
+        <span class="eyebrow">番茄小结</span>
+        <h2 id="session-note-heading">这个番茄完成了什么？</h2>
+        <p id="session-note-task" class="dialog-description"></p>
+        <label for="session-note">事情记录</label>
+        <textarea
+          id="session-note"
+          rows="5"
+          maxlength="1000"
+          placeholder="例如：整理了第三章笔记，完成了两道练习题……"
+        ></textarea>
+        <div class="dialog-actions">
+          <button id="skip-session-note" type="button">暂不填写</button>
+          <button class="primary" type="submit">保存记录</button>
         </div>
       </form>
     </dialog>
@@ -101,9 +339,19 @@
           <strong id="zoom-value">100%</strong>
         </div>
         <label for="focus-durations">专注时长（分钟）</label>
-        <input id="focus-durations" inputmode="numeric" placeholder="15, 25, 45" />
+        <input id="focus-durations" inputmode="numeric" placeholder="25" />
         <label for="break-durations">休息时长（分钟）</label>
-        <input id="break-durations" inputmode="numeric" placeholder="5, 10" />
+        <input id="break-durations" inputmode="numeric" placeholder="5" />
+        <label for="week-start-day">每周开始于</label>
+        <select id="week-start-day">
+          <option value="1" selected>星期一（默认）</option>
+          <option value="2">星期二</option>
+          <option value="3">星期三</option>
+          <option value="4">星期四</option>
+          <option value="5">星期五</option>
+          <option value="6">星期六</option>
+          <option value="0">星期日</option>
+        </select>
         <label class="checkbox-setting" for="timer-popup-topmost">
           <input id="timer-popup-topmost" type="checkbox" checked />
           <span>弹出的计时窗口置顶显示</span>

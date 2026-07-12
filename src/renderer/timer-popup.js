@@ -1,6 +1,7 @@
 const titleElement = document.querySelector('#task-title');
 const statusElement = document.querySelector('#status');
 const timeElement = document.querySelector('#time');
+const closeButton = document.querySelector('#close-popup');
 
 function formatTime(seconds) {
   const minutes = Math.floor(seconds / 60);
@@ -18,3 +19,5 @@ window.pomodoro.onTimerPopupUpdate((timer) => {
       : '专注中'
     : '已暂停';
 });
+
+closeButton.addEventListener('click', () => window.pomodoro.hideTimerPopup());

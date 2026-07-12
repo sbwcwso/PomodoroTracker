@@ -1,13 +1,14 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
-const { app, BrowserWindow, dialog, ipcMain, Menu } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Menu, screen } = require('electron');
 const { AppDatabase } = require('./database');
 const { ConfigStore } = require('./config-store');
 
 let database;
 let configStore;
 let timerPopup;
+const DEFAULT_WINDOW_SIZE = Object.freeze({ width: 1940, height: 1189 });
 
 function defaultDatabasePath() {
   return path.join(app.getPath('userData'), 'pomodoro.sqlite3');
@@ -29,6 +30,7 @@ function publicConfig() {
 
 function openDatabase() {
   database = new AppDatabase(currentDatabasePath());
+  database.migrateUiGroups(configStore.getAll());
 }
 
 function switchDatabase(nextPath) {
@@ -63,9 +65,20 @@ function changeZoom(window, delta) {
 }
 
 function createWindow() {
+  const config = configStore.getAll();
+  const workArea = screen.getPrimaryDisplay().workAreaSize;
+  const savedBounds = config.windowBounds;
+  const width = Math.min(
+    workArea.width,
+    Math.max(880, savedBounds?.width || DEFAULT_WINDOW_SIZE.width),
+  );
+  const height = Math.min(
+    workArea.height,
+    Math.max(620, savedBounds?.height || DEFAULT_WINDOW_SIZE.height),
+  );
   const window = new BrowserWindow({
-    width: 1120,
-    height: 760,
+    width,
+    height,
     minWidth: 880,
     minHeight: 620,
     backgroundColor: '#f5f1e8',
@@ -75,6 +88,12 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: false,
     },
+  });
+  if (config.windowMaximized) {
+    window.maximize();
+  }
+  window.on('close', () => {
+    configStore.setWindowState(window.getNormalBounds(), window.isMaximized());
   });
   window.webContents.setZoomFactor(configStore.getAll().zoomFactor);
   window.webContents.on('before-input-event', (event, input) => {
@@ -109,20 +128,46 @@ function keepTimerPopupOnTop() {
   }
 }
 
+function notifyTimerPopupVisibility(visible) {
+  BrowserWindow.getAllWindows().forEach((window) => {
+    if (window !== timerPopup) {
+      window.webContents.send('timer-popup:visibility', visible);
+    }
+  });
+}
+
+function restoredTimerPopupPosition(width, height) {
+  const savedPosition = configStore.getAll().timerPopupPosition;
+  if (!savedPosition) {
+    return {};
+  }
+  const { workArea } = screen.getDisplayNearestPoint(savedPosition);
+  return {
+    x: Math.min(Math.max(savedPosition.x, workArea.x), workArea.x + workArea.width - width),
+    y: Math.min(Math.max(savedPosition.y, workArea.y), workArea.y + workArea.height - height),
+  };
+}
+
 function showTimerPopup(timer) {
   if (timerPopup?.isDestroyed()) {
     timerPopup = null;
   }
   if (!timerPopup) {
+    const width = 280;
+    const height = 156;
     timerPopup = new BrowserWindow({
-      width: 260,
-      height: 132,
+      width,
+      height,
+      ...restoredTimerPopupPosition(width, height),
+      frame: false,
+      transparent: true,
+      hasShadow: true,
       resizable: false,
       minimizable: false,
       maximizable: false,
       alwaysOnTop: configStore.getAll().timerPopupAlwaysOnTop,
       skipTaskbar: true,
-      backgroundColor: '#fffdf8',
+      backgroundColor: '#00000000',
       webPreferences: {
         preload: path.join(__dirname, '../preload/preload.js'),
         contextIsolation: true,
@@ -130,29 +175,60 @@ function showTimerPopup(timer) {
         sandbox: false,
       },
     });
+    const popup = timerPopup;
     keepTimerPopupOnTop();
     timerPopup.removeMenu();
-    timerPopup.on('closed', () => {
-      timerPopup = null;
+    popup.on('close', () => {
+      const [x, y] = popup.getPosition();
+      configStore.setTimerPopupPosition({ x, y });
     });
+    popup.on('closed', () => {
+      if (timerPopup === popup) {
+        timerPopup = null;
+      }
+      notifyTimerPopupVisibility(false);
+    });
+    notifyTimerPopupVisibility(true);
     timerPopup.loadFile(path.join(__dirname, '../renderer/timer-popup.html')).then(() => {
       keepTimerPopupOnTop();
       timerPopup?.webContents.send('timer-popup:update', timer);
     });
-    return;
+    return true;
   }
   timerPopup.show();
   keepTimerPopupOnTop();
   timerPopup.webContents.send('timer-popup:update', timer);
+  return true;
 }
 
 function registerHandlers() {
   ipcMain.handle('tasks:list', () => database.listTasks());
   ipcMain.handle('tasks:create', (_event, input) => database.createTask(input));
+  ipcMain.handle('tasks:rename', (_event, id, title) => database.renameTask(id, title));
+  ipcMain.handle('tasks:setDefaultGroup', (_event, id) => database.setDefaultGroup(id));
+  ipcMain.handle('tasks:setGroupCollapsed', (_event, id, collapsed) =>
+    database.setGroupCollapsed(id, collapsed),
+  );
+  ipcMain.handle('tasks:moveToGroup', (_event, taskIds, groupId) =>
+    database.moveTasks(taskIds, groupId),
+  );
   ipcMain.handle('tasks:toggle', (_event, id) => database.toggleTask(id));
   ipcMain.handle('tasks:delete', (_event, id) => database.deleteTask(id));
+  ipcMain.handle('tasks:setTimerSettings', (_event, id, input) =>
+    database.setTaskTimerSettings(id, input),
+  );
   ipcMain.handle('sessions:record', (_event, input) => database.recordSession(input));
+  ipcMain.handle('sessions:updateNote', (_event, sessionId, note) =>
+    database.updateSessionNote(sessionId, note),
+  );
+  ipcMain.handle('sessions:listForTask', (_event, taskId) => database.listTaskSessions(taskId));
   ipcMain.handle('summary:get', () => database.getSummary());
+  ipcMain.handle('dashboard:get', (_event, input = {}) =>
+    database.getDashboardData({
+      ...input,
+      weekStartDay: configStore.getAll().weekStartDay,
+    }),
+  );
   ipcMain.handle('settings:get', () => publicConfig());
   ipcMain.handle('settings:setZoom', (_event, value) => {
     configStore.setZoomFactor(value);
@@ -177,19 +253,27 @@ function registerHandlers() {
     });
     return config;
   });
+  ipcMain.handle('settings:setWeekStartDay', (_event, value) => {
+    const config = configStore.setWeekStartDay(value);
+    BrowserWindow.getAllWindows().forEach((window) => {
+      window.webContents.send('settings:changed', config);
+    });
+    return config;
+  });
+  ipcMain.handle('settings:setTaskGrouping', (_event, value) => configStore.setTaskGrouping(value));
   ipcMain.handle('settings:chooseDatabasePath', async (event) => {
     const window = BrowserWindow.fromWebContents(event.sender);
-    const result = await dialog.showSaveDialog(window, {
-      title: '选择数据库文件位置',
+    const result = await dialog.showOpenDialog(window, {
+      title: '选择已有数据库文件',
       defaultPath: currentDatabasePath(),
       filters: [{ name: 'SQLite 数据库', extensions: ['sqlite3', 'sqlite', 'db'] }],
-      buttonLabel: '使用此位置',
-      properties: ['createDirectory', 'showOverwriteConfirmation'],
+      buttonLabel: '使用此数据库',
+      properties: ['openFile'],
     });
-    if (result.canceled || !result.filePath) {
+    if (result.canceled || !result.filePaths[0]) {
       return publicConfig();
     }
-    return switchDatabase(result.filePath);
+    return switchDatabase(result.filePaths[0]);
   });
   ipcMain.handle('settings:chooseSoundPath', async (event, kind) => {
     const window = BrowserWindow.fromWebContents(event.sender);
@@ -223,6 +307,8 @@ function registerHandlers() {
   ipcMain.handle('timer-popup:hide', () => {
     timerPopup?.close();
     timerPopup = null;
+    notifyTimerPopupVisibility(false);
+    return false;
   });
   ipcMain.handle('app:action', (event, action) => {
     const window = BrowserWindow.fromWebContents(event.sender);
