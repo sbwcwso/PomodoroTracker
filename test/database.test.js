@@ -22,6 +22,14 @@ test('creates hierarchical tasks and records a session', () => {
     startedAt: new Date().toISOString(),
     countsAsPomodoro: false,
   });
+  const skippedSession = database.recordSession({
+    taskId: child.id,
+    durationSeconds: 29,
+    startedAt: new Date().toISOString(),
+    countsAsPomodoro: false,
+  });
+  assert.equal(skippedSession.skipped, true);
+  assert.equal(skippedSession.sessionId, null);
   const tasks = database.listTasks();
   assert.equal(tasks.length, 2);
   assert.equal(tasks.find((item) => item.id === parent.id).focused_seconds, 1800);
@@ -39,6 +47,12 @@ test('creates hierarchical tasks and records a session', () => {
   assert.equal(
     sessions.find((session) => session.id === completedSession.sessionId).note,
     '完成了课程笔记和练习题',
+  );
+  assert.equal(database.searchSessionNotes({ query: '课程笔记' }).length, 1);
+  assert.equal(database.searchSessionNotes({ query: '课程.*练习题', useRegex: true }).length, 1);
+  assert.throws(
+    () => database.searchSessionNotes({ query: '[', useRegex: true }),
+    /正则表达式无效/,
   );
   const dashboard = database.getDashboardData();
   assert.equal(dashboard.taskStats.length, 1);
@@ -123,6 +137,54 @@ test('renames tasks and rejects duplicate direct children', () => {
   assert.equal(database.renameTask(second.id, 'Operating Systems').title, 'Operating Systems');
   assert.equal(database.renameTask(parent.id, 'Computer Science').title, 'Computer Science');
   assert.equal(database.renameTask(grandchild.id, 'Algorithms').title, 'Algorithms');
+  database.close();
+});
+
+test('cascades completed state down and active state up the task tree', () => {
+  const database = new AppDatabase(':memory:');
+  const parent = database.createTask({ title: 'Parent' });
+  const child = database.createTask({ title: 'Child', parentId: parent.id });
+  const sibling = database.createTask({ title: 'Sibling', parentId: parent.id });
+  const grandchild = database.createTask({ title: 'Grandchild', parentId: child.id });
+
+  database.toggleTask(parent.id);
+  let tasks = database.listTasks();
+  assert.ok(
+    [parent.id, child.id, sibling.id, grandchild.id].every(
+      (id) => tasks.find((task) => task.id === id).status === 'done',
+    ),
+  );
+
+  database.toggleTask(grandchild.id);
+  tasks = database.listTasks();
+  assert.equal(tasks.find((task) => task.id === grandchild.id).status, 'active');
+  assert.equal(tasks.find((task) => task.id === child.id).status, 'active');
+  assert.equal(tasks.find((task) => task.id === parent.id).status, 'active');
+  assert.equal(tasks.find((task) => task.id === sibling.id).status, 'done');
+  database.close();
+});
+
+test('moves tasks within the same parent and reports ordering boundaries', () => {
+  const database = new AppDatabase(':memory:');
+  const parent = database.createTask({ title: 'Parent' });
+  const first = database.createTask({ title: 'First', parentId: parent.id });
+  const second = database.createTask({ title: 'Second', parentId: parent.id });
+  const third = database.createTask({ title: 'Third', parentId: parent.id });
+  const siblingTitles = () =>
+    database
+      .listTasks()
+      .filter((task) => task.parent_id === parent.id)
+      .map((task) => task.title);
+
+  assert.deepEqual(siblingTitles(), ['First', 'Second', 'Third']);
+  assert.equal(database.moveTask(third.id, 'up').moved, true);
+  assert.deepEqual(siblingTitles(), ['First', 'Third', 'Second']);
+  assert.equal(database.moveTask(first.id, 'up').boundary, 'top');
+  assert.deepEqual(siblingTitles(), ['First', 'Third', 'Second']);
+  assert.equal(database.moveTask(third.id, 'down').moved, true);
+  assert.deepEqual(siblingTitles(), ['First', 'Second', 'Third']);
+  assert.equal(database.moveTask(third.id, 'down').boundary, 'bottom');
+  assert.equal(second.id > first.id, true);
   database.close();
 });
 

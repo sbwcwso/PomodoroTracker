@@ -12,6 +12,7 @@ const state = {
   groupSelectionMode: false,
   selectedGroupIds: new Set(),
   selectedTaskIds: new Set(),
+  taskFilter: '',
   pendingRootGroupId: 'default',
   editingGroupId: null,
   editingTaskId: null,
@@ -28,12 +29,16 @@ const state = {
   pendingNoteSessionId: null,
   historyTaskId: null,
   historySessions: new Map(),
+  historyOpenedFromSearch: false,
+  recordSearchScrollTop: 0,
   duration: 25 * 60,
   remaining: 25 * 60,
   running: false,
   timerPopupOpen: false,
   interval: null,
   startedAt: null,
+  endsAt: null,
+  timerCompleting: false,
   focusEndSoundUrl: 'assets/sounds/focus-end.mp3',
   breakEndSoundUrl: 'assets/sounds/break-end.mp3',
 };
@@ -43,6 +48,9 @@ const elements = {
   collapseGroups: document.querySelector('#collapse-groups'),
   selectGroups: document.querySelector('#select-groups'),
   deleteGroups: document.querySelector('#delete-groups'),
+  taskSearchInput: document.querySelector('#task-search-input'),
+  taskSearchCount: document.querySelector('#task-search-count'),
+  clearTaskSearch: document.querySelector('#clear-task-search'),
   groupDialog: document.querySelector('#group-dialog'),
   groupForm: document.querySelector('#group-form'),
   groupName: document.querySelector('#group-name'),
@@ -88,6 +96,16 @@ const elements = {
   taskHistoryDialog: document.querySelector('#task-history-dialog'),
   taskHistoryTitle: document.querySelector('#task-history-title'),
   taskHistoryContent: document.querySelector('#task-history-content'),
+  historyBackToSearch: document.querySelector('#history-back-to-search'),
+  searchRecords: document.querySelector('#search-records'),
+  recordSearchDialog: document.querySelector('#record-search-dialog'),
+  closeRecordSearch: document.querySelector('#close-record-search'),
+  recordSearchInput: document.querySelector('#record-search-input'),
+  recordSearchRegex: document.querySelector('#record-search-regex'),
+  recordSearchCase: document.querySelector('#record-search-case'),
+  recordSearchSummary: document.querySelector('#record-search-summary'),
+  recordSearchError: document.querySelector('#record-search-error'),
+  recordSearchResults: document.querySelector('#record-search-results'),
   interruptConfirmDialog: document.querySelector('#interrupt-confirm-dialog'),
   interruptConfirmTitle: document.querySelector('#interrupt-confirm-title'),
   interruptConfirmMessage: document.querySelector('#interrupt-confirm-message'),
@@ -104,6 +122,8 @@ const elements = {
   sessionNoteTask: document.querySelector('#session-note-task'),
   sessionNote: document.querySelector('#session-note'),
   skipSessionNote: document.querySelector('#skip-session-note'),
+  markdownHelpToggle: document.querySelector('#markdown-help-toggle'),
+  markdownHelpPanel: document.querySelector('#markdown-help-panel'),
   settingsDialog: document.querySelector('#settings-dialog'),
   settingsForm: document.querySelector('#settings-dialog form'),
   zoomRange: document.querySelector('#zoom-range'),
@@ -123,6 +143,119 @@ const elements = {
   focusEndSound: document.querySelector('#focus-end-sound'),
   breakEndSound: document.querySelector('#break-end-sound'),
 };
+
+const appTooltip = document.createElement('div');
+appTooltip.className = 'app-tooltip';
+appTooltip.setAttribute('role', 'tooltip');
+appTooltip.hidden = true;
+document.body.append(appTooltip);
+let tooltipTarget = null;
+let tooltipTimer = null;
+
+function upgradeTooltips(root = document) {
+  const candidates = [];
+  if (root.nodeType === 1 && root.hasAttribute('title')) {
+    candidates.push(root);
+  }
+  root.querySelectorAll?.('[title]').forEach((element) => candidates.push(element));
+  candidates.forEach((element) => {
+    const label = element.getAttribute('title')?.trim();
+    if (label) {
+      element.dataset.tooltip = label;
+    }
+    element.removeAttribute('title');
+  });
+}
+
+function positionTooltip(target) {
+  const targetRect = target.getBoundingClientRect();
+  const tooltipRect = appTooltip.getBoundingClientRect();
+  const targetCenter = targetRect.left + targetRect.width / 2;
+  const left = Math.min(
+    Math.max(10, targetCenter - tooltipRect.width / 2),
+    window.innerWidth - tooltipRect.width - 10,
+  );
+  let top = targetRect.top - tooltipRect.height - 12;
+  const below = top < 8;
+  if (below) {
+    top = targetRect.bottom + 12;
+  }
+  appTooltip.style.left = `${left}px`;
+  appTooltip.style.top = `${top}px`;
+  appTooltip.style.setProperty(
+    '--tooltip-arrow-x',
+    `${Math.min(Math.max(14, targetCenter - left), tooltipRect.width - 14)}px`,
+  );
+  appTooltip.classList.toggle('below', below);
+}
+
+function showTooltip(target) {
+  window.clearTimeout(tooltipTimer);
+  tooltipTarget = target;
+  tooltipTimer = window.setTimeout(() => {
+    if (tooltipTarget !== target || !target.isConnected) {
+      return;
+    }
+    const openDialog = target.closest('dialog[open]');
+    const tooltipHost = openDialog || document.body;
+    if (appTooltip.parentElement !== tooltipHost) {
+      tooltipHost.append(appTooltip);
+    }
+    appTooltip.textContent = target.dataset.tooltip;
+    appTooltip.hidden = false;
+    window.requestAnimationFrame(() => positionTooltip(target));
+  }, 220);
+}
+
+function hideTooltip(target = null) {
+  if (target && tooltipTarget !== target) {
+    return;
+  }
+  window.clearTimeout(tooltipTimer);
+  tooltipTarget = null;
+  appTooltip.hidden = true;
+}
+
+upgradeTooltips();
+new window.MutationObserver((mutations) => {
+  mutations.forEach((mutation) => {
+    if (mutation.type === 'attributes') {
+      upgradeTooltips(mutation.target);
+    } else {
+      mutation.addedNodes.forEach((node) => upgradeTooltips(node));
+    }
+  });
+}).observe(document.body, {
+  subtree: true,
+  childList: true,
+  attributes: true,
+  attributeFilter: ['title'],
+});
+document.addEventListener('mouseover', (event) => {
+  const target = event.target.closest('[data-tooltip]');
+  if (target && target !== tooltipTarget) {
+    showTooltip(target);
+  }
+});
+document.addEventListener('mouseout', (event) => {
+  const target = event.target.closest('[data-tooltip]');
+  if (target && !target.contains(event.relatedTarget)) {
+    hideTooltip(target);
+  }
+});
+document.addEventListener('focusin', (event) => {
+  const target = event.target.closest('[data-tooltip]');
+  if (target) {
+    showTooltip(target);
+  }
+});
+document.addEventListener('focusout', (event) => {
+  const target = event.target.closest('[data-tooltip]');
+  if (target) {
+    hideTooltip(target);
+  }
+});
+window.addEventListener('blur', () => hideTooltip());
 
 function showSettings(config) {
   const percent = Math.round(config.zoomFactor * 100);
@@ -147,8 +280,122 @@ function escapeHtml(value) {
   div.textContent = String(value);
   return div.innerHTML;
 }
-function formatMinutes(seconds) {
-  return Math.round(seconds / 60);
+
+function safeMarkdownUrl(value) {
+  try {
+    const url = new globalThis.URL(String(value || ''));
+    return ['http:', 'https:', 'mailto:'].includes(url.protocol) ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+function renderInlineMarkdown(value) {
+  const tokens = [];
+  const preserve = (html) => {
+    const token = `\uE000${tokens.length}\uE001`;
+    tokens.push(html);
+    return token;
+  };
+  let text = String(value || '');
+  text = text.replace(/`([^`\n]+)`/g, (_match, code) =>
+    preserve(`<code>${escapeHtml(code)}</code>`),
+  );
+  text = text.replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, (match, label, rawUrl) => {
+    const url = safeMarkdownUrl(rawUrl);
+    if (!url) {
+      return match;
+    }
+    return preserve(
+      `<a href="${escapeHtml(url)}" data-markdown-link="${escapeHtml(url)}">${escapeHtml(label)}</a>`,
+    );
+  });
+  text = escapeHtml(text)
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/~~([^~\n]+)~~/g, '<del>$1</del>')
+    .replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+  return text.replace(/\uE000(\d+)\uE001/g, (_match, index) => tokens[Number(index)] || '');
+}
+
+function renderMarkdown(value) {
+  const source = String(value || '').trim();
+  if (!source) {
+    return '<span class="markdown-empty">未填写</span>';
+  }
+  const lines = source.replace(/\r\n?/g, '\n').split('\n');
+  const output = [];
+  let index = 0;
+  const isBlockStart = (line) =>
+    /^\s*$/.test(line) ||
+    /^```/.test(line) ||
+    /^(#{1,3})\s+/.test(line) ||
+    /^\s*>\s?/.test(line) ||
+    /^\s*[-+*]\s+/.test(line) ||
+    /^\s*\d+[.)]\s+/.test(line);
+  while (index < lines.length) {
+    const line = lines[index];
+    if (!line.trim()) {
+      index += 1;
+      continue;
+    }
+    if (/^```/.test(line)) {
+      const code = [];
+      index += 1;
+      while (index < lines.length && !/^```/.test(lines[index])) {
+        code.push(lines[index]);
+        index += 1;
+      }
+      index += index < lines.length ? 1 : 0;
+      output.push(`<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`);
+      continue;
+    }
+    const heading = line.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      const level = heading[1].length + 2;
+      output.push(`<h${level}>${renderInlineMarkdown(heading[2])}</h${level}>`);
+      index += 1;
+      continue;
+    }
+    if (/^\s*>\s?/.test(line)) {
+      const quote = [];
+      while (index < lines.length && /^\s*>\s?/.test(lines[index])) {
+        quote.push(lines[index].replace(/^\s*>\s?/, ''));
+        index += 1;
+      }
+      output.push(`<blockquote>${quote.map(renderInlineMarkdown).join('<br>')}</blockquote>`);
+      continue;
+    }
+    const unordered = /^\s*[-+*]\s+/.test(line);
+    const ordered = /^\s*\d+[.)]\s+/.test(line);
+    if (unordered || ordered) {
+      const tag = ordered ? 'ol' : 'ul';
+      const pattern = ordered ? /^\s*\d+[.)]\s+/ : /^\s*[-+*]\s+/;
+      const items = [];
+      while (index < lines.length && pattern.test(lines[index])) {
+        items.push(`<li>${renderInlineMarkdown(lines[index].replace(pattern, ''))}</li>`);
+        index += 1;
+      }
+      output.push(`<${tag}>${items.join('')}</${tag}>`);
+      continue;
+    }
+    const paragraph = [line];
+    index += 1;
+    while (index < lines.length && !isBlockStart(lines[index])) {
+      paragraph.push(lines[index]);
+      index += 1;
+    }
+    output.push(`<p>${paragraph.map(renderInlineMarkdown).join('<br>')}</p>`);
+  }
+  return output.join('');
+}
+function formatTaskDuration(seconds) {
+  const totalMinutes = Math.round(Math.max(0, Number(seconds) || 0) / 60);
+  if (totalMinutes < 60) {
+    return `${totalMinutes} 分钟`;
+  }
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return minutes > 0 ? `${hours} 小时 ${minutes} 分钟` : `${hours} 小时`;
 }
 function formatTime(seconds) {
   const safeSeconds = Math.max(0, seconds);
@@ -175,6 +422,19 @@ function formatCompactDuration(seconds) {
     return `${(safeSeconds / 3600).toFixed(1)} 小时`;
   }
   return `${Math.floor(safeSeconds / 60)} 分钟`;
+}
+
+function formatDashboardTotalDuration(seconds) {
+  const safeSeconds = Math.max(0, Number(seconds) || 0);
+  if (safeSeconds < 60) {
+    return `${safeSeconds} 秒`;
+  }
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  if (hours > 0) {
+    return minutes > 0 ? `${hours} 小时 ${minutes} 分钟` : `${hours} 小时`;
+  }
+  return `${minutes} 分钟`;
 }
 
 function chartScale(maxSeconds) {
@@ -223,32 +483,13 @@ function orderedTasks() {
   return result;
 }
 
-function childMap() {
+function childMap(tasks = state.tasks) {
   const children = new Map();
-  state.tasks.forEach((task) => {
+  tasks.forEach((task) => {
     const key = task.parent_id || 0;
     children.set(key, [...(children.get(key) || []), task]);
   });
   return children;
-}
-
-function flattenDescendants(parentId, children, depth = 0) {
-  return (children.get(parentId) || []).flatMap((task) => [
-    { ...task, depth },
-    ...flattenDescendants(task.id, children, depth + 1),
-  ]);
-}
-
-function flattenVisibleDescendants(parentId, children, depth = 0) {
-  return (children.get(parentId) || []).flatMap((task) => {
-    const descendants = state.collapsedTaskIds.has(task.id)
-      ? []
-      : flattenVisibleDescendants(task.id, children, depth + 1);
-    return [
-      { ...task, depth, hasChildren: (children.get(task.id) || []).length > 0 },
-      ...descendants,
-    ];
-  });
 }
 
 function descendantIds(parentId, children) {
@@ -258,15 +499,50 @@ function descendantIds(parentId, children) {
   ]);
 }
 
+function taskFilterResult(query) {
+  const normalized = String(query || '')
+    .trim()
+    .toLocaleLowerCase('zh-CN');
+  if (!normalized) {
+    return null;
+  }
+  const tasksById = new Map(state.tasks.map((task) => [task.id, task]));
+  const children = childMap();
+  const matches = state.tasks.filter((task) =>
+    task.title.toLocaleLowerCase('zh-CN').includes(normalized),
+  );
+  const visibleIds = new Set();
+  matches.forEach((task) => {
+    visibleIds.add(task.id);
+    descendantIds(task.id, children).forEach((id) => visibleIds.add(id));
+    let parent = tasksById.get(task.parent_id);
+    while (parent) {
+      visibleIds.add(parent.id);
+      parent = tasksById.get(parent.parent_id);
+    }
+  });
+  return { visibleIds, matchCount: matches.length };
+}
+
 function sameDurations(first, second) {
   return first.length === second.length && first.every((value, index) => value === second[index]);
 }
 
-function taskTimerSummary(task) {
-  if (task.focus_minutes === null && task.break_minutes === null) {
-    return '';
-  }
-  return ` · 专属 ${task.focus_minutes ?? state.focusDuration}/${task.break_minutes ?? state.breakDuration} 分钟`;
+function effectiveTaskTimer(task) {
+  return {
+    focusMinutes: task.focus_minutes ?? state.focusDuration,
+    breakMinutes: task.break_minutes ?? state.breakDuration,
+  };
+}
+
+function renderMoveControls(id, index, total, type) {
+  const attribute = type === 'group' ? 'data-move-group' : 'data-move-task';
+  const canMoveUp = index > 0;
+  const canMoveDown = index < total - 1;
+  return `<div class="move-controls" role="group" aria-label="调整顺序">
+    <button class="move-button ${canMoveUp ? '' : 'is-disabled'}" type="button" ${attribute}="${escapeHtml(id)}" data-direction="up" data-can-move="${canMoveUp}" title="${canMoveUp ? '向上移动' : '已经到顶'}" aria-label="${canMoveUp ? '向上移动' : '已经到顶'}" aria-disabled="${!canMoveUp}"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 11 4-4 4 4"/></svg></button>
+    <button class="move-button ${canMoveDown ? '' : 'is-disabled'}" type="button" ${attribute}="${escapeHtml(id)}" data-direction="down" data-can-move="${canMoveDown}" title="${canMoveDown ? '向下移动' : '已经到底'}" aria-label="${canMoveDown ? '向下移动' : '已经到底'}" aria-disabled="${!canMoveDown}"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6 9 4 4 4-4"/></svg></button>
+  </div>`;
 }
 
 function localDateValue(date = new Date()) {
@@ -442,7 +718,7 @@ async function renderDashboard() {
   elements.dashboardDate.textContent = dashboardRangeLabel(period, startDate, endDate);
   elements.dashboardDateLabel.textContent =
     period === 'day' ? '选择日期' : period === 'week' ? '选择周内日期' : '选择年内日期';
-  elements.dashboardTotalTime.textContent = formatCompactDuration(totalSeconds);
+  elements.dashboardTotalTime.textContent = formatDashboardTotalDuration(totalSeconds);
   elements.dashboardCompletedCount.textContent = completedCount;
   elements.dashboardInterruptedCount.textContent = interruptedCount;
 
@@ -766,38 +1042,76 @@ function rootTaskIdsForGroup(groupId) {
     .map((task) => task.id);
 }
 
-function renderRootItem(task) {
+function renderTreeItem(task, depth, children, allChildren = children) {
   const selecting = state.groupSelectionMode;
-  return `<div class="root-item ${selecting ? 'selecting' : ''} ${state.selectedTaskIds.has(task.id) ? 'batch-selected' : ''} ${task.id === state.selectedRootId ? 'selected' : ''} ${task.status === 'done' ? 'done' : ''}" data-root-id="${task.id}" draggable="true">
-    ${selecting ? `<input class="root-selection-check" type="checkbox" data-select-task="${task.id}" aria-label="选择 ${escapeHtml(task.title)}" ${state.selectedTaskIds.has(task.id) ? 'checked' : ''}>` : ''}
-    <button class="root-select" data-root-select="${task.id}">
+  const isRoot = depth === 0;
+  const hasChildren = (children.get(task.id) || []).length > 0;
+  const collapsed = !state.taskFilter.trim() && state.collapsedTaskIds.has(task.id);
+  const timer = effectiveTaskTimer(task);
+  const siblings = allChildren.get(task.parent_id) || [];
+  const siblingIndex = siblings.findIndex((sibling) => sibling.id === task.id);
+  const descendants =
+    hasChildren && !collapsed
+      ? (children.get(task.id) || [])
+          .map((child) => renderTreeItem(child, depth + 1, children, allChildren))
+          .join('')
+      : '';
+  return `<div class="tree-task-branch depth-${Math.min(depth, 6)} ${hasChildren ? 'has-children' : ''}">
+    <div class="root-item tree-task ${selecting && isRoot ? 'selecting' : ''} ${state.selectedTaskIds.has(task.id) ? 'batch-selected' : ''} ${task.status === 'done' ? 'done' : ''}" data-task-id="${task.id}" ${isRoot ? `data-root-id="${task.id}" draggable="true"` : ''}>
+    ${selecting && isRoot ? `<input class="root-selection-check" type="checkbox" data-select-task="${task.id}" aria-label="选择 ${escapeHtml(task.title)}" ${state.selectedTaskIds.has(task.id) ? 'checked' : ''}>` : ''}
+    ${hasChildren ? `<button class="tree-collapse-button ${collapsed ? 'is-collapsed' : ''}" data-action="collapse-one" data-id="${task.id}" aria-label="${collapsed ? '展开子项' : '折叠子项'}" aria-expanded="${!collapsed}"><span class="task-group__chevron" aria-hidden="true"></span></button>` : '<span class="tree-collapse-spacer" aria-hidden="true"></span>'}
+    <button class="root-select" data-tree-select="${task.id}">
       <span>${escapeHtml(task.title)}</span>
-      <small>${task.session_count} 个番茄 · ${formatMinutes(task.focused_seconds)} 分钟${taskTimerSummary(task)}</small>
+      <small>${task.session_count} 个番茄 · ${formatTaskDuration(task.focused_seconds)}</small>
     </button>
-    <button class="pomodoro-button" data-action="start-pomodoro" data-id="${task.id}" title="在此事项上启动番茄钟" aria-label="在 ${escapeHtml(task.title)} 上启动番茄钟"><span class="pomodoro-icon" aria-hidden="true">🍅</span></button>
+    <button class="pomodoro-control" data-action="start-pomodoro" data-id="${task.id}" title="启动番茄钟 · 专注 ${timer.focusMinutes} 分钟，休息 ${timer.breakMinutes} 分钟" aria-label="在 ${escapeHtml(task.title)} 上启动番茄钟，专注 ${timer.focusMinutes} 分钟，休息 ${timer.breakMinutes} 分钟">
+      <span class="pomodoro-icon" aria-hidden="true">🍅</span>
+      <span class="pomodoro-duration">${timer.focusMinutes}/${timer.breakMinutes}</span>
+    </button>
+    <button class="completion-button ${task.status === 'done' ? 'is-complete' : ''}" data-action="toggle-complete" data-id="${task.id}" type="button" title="${task.status === 'done' ? '恢复为未完成' : '标记完成'}" aria-label="${task.status === 'done' ? `将 ${escapeHtml(task.title)} 恢复为未完成` : `将 ${escapeHtml(task.title)} 标记完成`}" aria-pressed="${task.status === 'done'}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path class="completion-check" d="m8.5 12 2.3 2.4 4.9-5"/></svg></button>
+    <button class="history-button" data-action="history" data-id="${task.id}" type="button" title="查看专注记录" aria-label="查看 ${escapeHtml(task.title)} 的专注记录"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.8 8.2A8 8 0 1 1 4 14M4.8 8.2V4.5M4.8 8.2h3.7M12 8v4.5l3 1.8" /></svg></button>
+    <button class="timer-settings-button" data-action="timer-settings" data-id="${task.id}" type="button" title="设置番茄钟时长" aria-label="设置 ${escapeHtml(task.title)} 的番茄钟时长"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 9v4l2.8 1.8M9 3h6M12 3v2"/></svg></button>
+    ${renderMoveControls(task.id, siblingIndex, siblings.length, 'task')}
     <button class="item-rename-button" data-action="rename" data-id="${task.id}" type="button" title="重命名事项" aria-label="重命名 ${escapeHtml(task.title)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16-.8 4 4-.8L18 8.4 15.6 6zM13.8 7.8l2.4 2.4" /></svg></button>
     <button class="child-add-button" data-action="child" data-id="${task.id}" type="button" title="新建子条目" aria-label="在 ${escapeHtml(task.title)} 下新建子条目"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M4 12h6M4 18h9M17 10v6m-3-3h6" /></svg></button>
+    </div>
+    ${descendants}
   </div>`;
 }
 
 function renderTasks() {
-  const tasks = orderedTasks();
+  const filterResult = taskFilterResult(state.taskFilter);
+  const isFiltering = filterResult !== null;
+  const allTasks = orderedTasks();
+  const tasks = isFiltering
+    ? allTasks.filter((task) => filterResult.visibleIds.has(task.id))
+    : allTasks;
   const groupIds = new Set(state.taskGroups.map((group) => group.id));
   const roots = tasks.filter((task) => task.is_group !== 1 && groupIds.has(String(task.parent_id)));
-  const rootIds = new Set(roots.map((task) => task.id));
+  const rootIds = new Set(
+    allTasks
+      .filter((task) => task.is_group !== 1 && groupIds.has(String(task.parent_id)))
+      .map((task) => task.id),
+  );
   state.selectedTaskIds = new Set(
     [...state.selectedTaskIds].filter((taskId) => rootIds.has(taskId)),
   );
-  const children = childMap();
-  if (!roots.some((task) => task.id === state.selectedRootId)) {
-    state.selectedRootId = roots[0]?.id || null;
-  }
+  const children = childMap(tasks);
+  const allChildren = childMap();
+  state.selectedRootId = null;
   elements.board.hidden = false;
   const groupedRoots = new Map(state.taskGroups.map((group) => [group.id, []]));
   roots.forEach((task) => groupedRoots.get(groupIdForTask(task.id)).push(task));
-  elements.rootList.innerHTML = state.taskGroups
-    .map((group) => {
+  const groupMarkup = state.taskGroups
+    .map((group, groupIndex) => {
       const groupRoots = groupedRoots.get(group.id) || [];
+      if (
+        isFiltering &&
+        groupRoots.length === 0 &&
+        !filterResult.visibleIds.has(Number(group.id))
+      ) {
+        return '';
+      }
       const selectedRootCount = groupRoots.filter((task) =>
         state.selectedTaskIds.has(task.id),
       ).length;
@@ -807,25 +1121,29 @@ function renderTasks() {
       const groupCheckbox = state.groupSelectionMode
         ? `<input class="group-selection-check" type="checkbox" data-select-group="${escapeHtml(group.id)}" aria-label="选择 ${escapeHtml(group.name)} 中的全部事项" ${groupSelected ? 'checked' : ''} data-partial="${selectedRootCount > 0 && !allRootsSelected}">`
         : '';
-      return `<section class="task-group ${group.collapsed ? 'collapsed' : ''}" data-group-id="${escapeHtml(group.id)}">
+      return `<section class="task-group ${group.collapsed && !isFiltering ? 'collapsed' : ''}" data-group-id="${escapeHtml(group.id)}">
         <header class="task-group__header ${selectingClass}">
           ${groupCheckbox}
-          <button class="task-group__toggle" type="button" data-toggle-group="${escapeHtml(group.id)}" aria-expanded="${!group.collapsed}">
+          <button class="task-group__toggle" type="button" data-toggle-group="${escapeHtml(group.id)}" aria-expanded="${isFiltering || !group.collapsed}">
             <span class="task-group__chevron" aria-hidden="true"></span>
             <span>${escapeHtml(group.name)}</span>
             ${group.id === state.defaultTaskGroupId ? '<span class="task-group__default-label" title="默认分组">默认</span>' : ''}
             <span class="task-group__count">${groupRoots.length}</span>
           </button>
           <button class="group-default-button ${group.id === state.defaultTaskGroupId ? 'active' : ''}" type="button" data-set-default-group="${escapeHtml(group.id)}" title="${group.id === state.defaultTaskGroupId ? '当前默认分组' : '设为默认分组'}" aria-label="${group.id === state.defaultTaskGroupId ? `${escapeHtml(group.name)} 是当前默认分组` : `将 ${escapeHtml(group.name)} 设为默认分组`}" aria-pressed="${group.id === state.defaultTaskGroupId}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6-5.4-2.8-5.4 2.8 1-6-4.4-4.3 6.1-.9z" /></svg></button>
+          ${renderMoveControls(group.id, groupIndex, state.taskGroups.length, 'group')}
           <button class="group-rename-button" type="button" data-rename-group="${escapeHtml(group.id)}" title="重命名分组" aria-label="重命名 ${escapeHtml(group.name)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16-.8 4 4-.8L18 8.4 15.6 6zM13.8 7.8l2.4 2.4" /></svg></button>
           <button class="child-add-button group-add-button" type="button" data-add-root-to-group="${escapeHtml(group.id)}" title="在此分组中新建事项" aria-label="在 ${escapeHtml(group.name)} 中新建事项"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M4 12h6M4 18h9M17 10v6m-3-3h6" /></svg></button>
         </header>
         <div class="task-group__items">
-          ${groupRoots.length ? groupRoots.map(renderRootItem).join('') : '<div class="task-group__empty">暂无事项，可拖动到这里</div>'}
+          ${groupRoots.length ? groupRoots.map((task) => renderTreeItem(task, 0, children, allChildren)).join('') : '<div class="task-group__empty">暂无事项，可拖动到这里</div>'}
         </div>
       </section>`;
     })
     .join('');
+  elements.rootList.innerHTML =
+    groupMarkup || '<div class="task-search-empty">没有找到符合条件的事项</div>';
+  elements.taskSearchCount.textContent = isFiltering ? `${filterResult.matchCount} 个匹配` : '';
   elements.rootList
     .querySelectorAll('.group-selection-check[data-partial="true"]')
     .forEach((input) => {
@@ -837,36 +1155,9 @@ function renderTasks() {
     (group) =>
       group.id !== state.defaultTaskGroupId &&
       state.selectedGroupIds.has(group.id) &&
-      (groupedRoots.get(group.id) || []).length === 0,
+      rootTaskIdsForGroup(group.id).length === 0,
   );
   elements.deleteGroups.disabled = state.selectedTaskIds.size === 0 && !selectedEmptyCustomGroup;
-  const allVisibleTasks = state.selectedRootId
-    ? flattenDescendants(state.selectedRootId, children)
-    : [];
-  const visibleTasks = state.selectedRootId
-    ? flattenVisibleDescendants(state.selectedRootId, children)
-    : [];
-  elements.empty.hidden = allVisibleTasks.length > 0;
-  elements.tree.innerHTML = visibleTasks.length
-    ? visibleTasks
-        .map(
-          (
-            task,
-          ) => `<div class="task child depth-${Math.min(Math.max(task.depth - 1, 1), 4)} ${task.status === 'done' ? 'done' : ''}" data-task-id="${task.id}">
-    <button class="status ${task.status === 'done' ? 'checked' : ''}" data-action="toggle" data-id="${task.id}" aria-label="切换完成状态"></button>
-    <div><div class="task-title">${escapeHtml(task.title)}</div><div class="task-meta">${task.session_count} 个番茄 · ${formatMinutes(task.focused_seconds)} 分钟${taskTimerSummary(task)}${task.notes ? ` · ${escapeHtml(task.notes)}` : ''}</div></div>
-    <button class="pomodoro-button" data-action="start-pomodoro" data-id="${task.id}" title="在此事项上启动番茄钟" aria-label="在 ${escapeHtml(task.title)} 上启动番茄钟"><span class="pomodoro-icon" aria-hidden="true">🍅</span></button>
-    <button class="item-rename-button" data-action="rename" data-id="${task.id}" type="button" title="重命名事项" aria-label="重命名 ${escapeHtml(task.title)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16-.8 4 4-.8L18 8.4 15.6 6zM13.8 7.8l2.4 2.4" /></svg></button>
-    <button class="child-add-button" data-action="child" data-id="${task.id}" type="button" title="新建子条目" aria-label="在 ${escapeHtml(task.title)} 下新建子条目"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M4 12h6M4 18h9M17 10v6m-3-3h6" /></svg></button>
-    ${
-      task.hasChildren
-        ? `<button class="collapse-button ${state.collapsedTaskIds.has(task.id) ? 'is-collapsed' : ''}" data-action="collapse-one" data-id="${task.id}" aria-label="${state.collapsedTaskIds.has(task.id) ? '展开子项' : '折叠子项'}" aria-expanded="${!state.collapsedTaskIds.has(task.id)}"><span class="collapse-icon" aria-hidden="true"></span></button>`
-        : ''
-    }
-  </div>`,
-        )
-        .join('')
-    : '';
 }
 
 function syncCurrentDuration() {
@@ -898,6 +1189,22 @@ function taskPath(id) {
   return path.join(' / ');
 }
 
+function topLevelTaskId(id) {
+  const taskMap = new Map(state.tasks.map((task) => [task.id, task]));
+  let current = taskMap.get(Number(id));
+  if (!current) {
+    return null;
+  }
+  while (current.parent_id) {
+    const parent = taskMap.get(current.parent_id);
+    if (!parent || parent.is_group === 1) {
+      break;
+    }
+    current = parent;
+  }
+  return current.id;
+}
+
 function hideContextMenu() {
   elements.contextMenu.hidden = true;
   elements.contextMenu.removeAttribute('data-task-id');
@@ -910,8 +1217,6 @@ function showContextMenu(event, taskId) {
     return;
   }
   elements.contextMenu.dataset.taskId = String(taskId);
-  elements.contextMenu.querySelector('[data-context-action="toggle"]').textContent =
-    task.status === 'done' ? '恢复为未完成' : '标记完成';
   elements.contextMenu.hidden = false;
   const { innerWidth, innerHeight } = window;
   const rect = elements.contextMenu.getBoundingClientRect();
@@ -994,7 +1299,7 @@ function openTaskTimerDialog(taskId) {
   elements.taskTimerDialog.showModal();
   elements.taskFocusMinutes.focus();
 }
-async function openTaskHistory(taskId) {
+async function openTaskHistory(taskId, options = {}) {
   const task = taskById(taskId);
   if (!task) {
     return;
@@ -1002,6 +1307,8 @@ async function openTaskHistory(taskId) {
   const sessions = await window.pomodoro.listTaskSessions(taskId);
   state.historyTaskId = taskId;
   state.historySessions = new Map(sessions.map((session) => [session.id, session]));
+  state.historyOpenedFromSearch = options.fromSearch === true;
+  elements.historyBackToSearch.hidden = !state.historyOpenedFromSearch;
   elements.taskHistoryTitle.textContent = taskPath(taskId);
   if (sessions.length === 0) {
     elements.taskHistoryContent.innerHTML = '<div class="history-empty">该事项还没有专注记录</div>';
@@ -1024,23 +1331,24 @@ async function openTaskHistory(taskId) {
           .map(
             (
               session,
-            ) => `<div class="history-entry ${session.counts_as_pomodoro ? '' : 'interrupted'}">
-              <span class="history-entry__dot" aria-hidden="true"></span>
-              <div class="history-entry__times">
-                <div class="history-entry__clock">
-                  <strong>${escapeHtml(session.local_start_time || '--:--:--')}</strong>
-                  <span>至 ${escapeHtml(session.local_end_time || '--:--:--')}</span>
+            ) => `<div class="history-entry ${session.counts_as_pomodoro ? '' : 'interrupted'}" data-history-session-id="${session.id}">
+              <div class="history-entry__overview">
+                <span class="history-entry__dot" aria-hidden="true"></span>
+                <div class="history-entry__times">
+                  <div class="history-entry__clock">
+                    <strong>${escapeHtml(session.local_start_time || '--:--:--')}</strong>
+                    <span>至 ${escapeHtml(session.local_end_time || '--:--:--')}</span>
+                  </div>
+                  <small>${escapeHtml(taskPath(session.task_id))}</small>
                 </div>
-                <small>${escapeHtml(taskPath(session.task_id))}</small>
+                <span class="history-entry__duration">${formatRecordedDuration(session.duration_seconds)}</span>
+                <span class="history-entry__status">${session.counts_as_pomodoro ? '完整番茄' : '被打断'}</span>
               </div>
-              <span class="history-entry__duration">${formatRecordedDuration(session.duration_seconds)}</span>
-              <span class="history-entry__status">${session.counts_as_pomodoro ? '完整番茄' : '被打断'}</span>
               <div class="history-entry__note" data-session-note="${session.id}">
                 <div class="history-entry__note-header">
-                  <span>事项记录</span>
                   <button type="button" data-edit-session-note="${session.id}">修改</button>
                 </div>
-                <p>${session.note ? escapeHtml(session.note) : '未填写'}</p>
+                <div class="markdown-content">${renderMarkdown(session.note)}</div>
               </div>
             </div>`,
           )
@@ -1051,12 +1359,34 @@ async function openTaskHistory(taskId) {
             <span class="history-day__summary">${completedCount} 个番茄 · ${formatRecordedDuration(totalSeconds)}</span>
             <span class="history-day__chevron" aria-hidden="true"></span>
           </summary>
-          <div class="history-day__entries">${rows}</div>
+          <div class="history-day__entries">
+            <div class="history-day__columns" aria-hidden="true"><span>专注时间</span><span>事项记录</span></div>
+            ${rows}
+          </div>
         </details>`;
       })
       .join('');
   }
+  if (elements.recordSearchDialog.open) {
+    elements.recordSearchDialog.close();
+  }
   elements.taskHistoryDialog.showModal();
+  if (options.targetSessionId) {
+    window.requestAnimationFrame(() => {
+      const target = elements.taskHistoryContent.querySelector(
+        `[data-history-session-id="${Number(options.targetSessionId)}"]`,
+      );
+      if (!target) {
+        return;
+      }
+      const day = target.closest('details');
+      if (day) {
+        day.open = true;
+      }
+      target.classList.add('is-search-target');
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
 }
 function renderTimer() {
   elements.activeTimer.hidden = !state.running;
@@ -1076,6 +1406,7 @@ function renderTimer() {
 function timerPopupState() {
   return {
     remaining: state.remaining,
+    endsAt: state.endsAt,
     running: state.running,
     phase: state.timerMode,
     title: state.timerMode === 'focus' ? taskPath(state.activeTaskId) : '休息',
@@ -1173,12 +1504,86 @@ function openSessionNoteDialog(sessionId, taskId, note = '', editing = false) {
   elements.sessionNoteTask.textContent = taskPath(taskId);
   elements.sessionNote.value = note;
   elements.skipSessionNote.textContent = editing ? '取消' : '暂不填写';
+  elements.markdownHelpPanel.hidden = true;
+  elements.markdownHelpToggle.setAttribute('aria-expanded', 'false');
+  elements.markdownHelpToggle.querySelector('span').textContent = 'Markdown 语法帮助';
   elements.sessionNoteDialog.showModal();
   elements.sessionNote.focus();
 }
 
+let recordSearchTimer = null;
+let recordSearchRequest = 0;
+
+async function runRecordSearch() {
+  const query = elements.recordSearchInput.value.trim();
+  window.clearTimeout(recordSearchTimer);
+  elements.recordSearchError.hidden = true;
+  elements.recordSearchError.textContent = '';
+  if (!query) {
+    elements.recordSearchSummary.textContent = '';
+    elements.recordSearchResults.innerHTML =
+      '<div class="record-search-placeholder">输入内容后开始搜索</div>';
+    return;
+  }
+  const requestId = ++recordSearchRequest;
+  elements.recordSearchSummary.textContent = '搜索中…';
+  try {
+    const sessions = await window.pomodoro.searchSessionNotes({
+      query,
+      useRegex: elements.recordSearchRegex.checked,
+      caseSensitive: elements.recordSearchCase.checked,
+    });
+    if (requestId !== recordSearchRequest) {
+      return;
+    }
+    elements.recordSearchSummary.textContent = `${sessions.length} 条结果`;
+    elements.recordSearchResults.innerHTML = sessions.length
+      ? sessions
+          .map((session) => {
+            const completedAt = new Date(session.completed_at);
+            const dateLabel = Number.isNaN(completedAt.getTime())
+              ? session.completed_at
+              : completedAt.toLocaleString('zh-CN', {
+                  year: 'numeric',
+                  month: '2-digit',
+                  day: '2-digit',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                });
+            return `<article class="record-search-result">
+              <div class="record-search-result__meta">
+                <span class="record-search-result__path">${escapeHtml(taskPath(session.task_id))}</span>
+                <span>${formatRecordedDuration(session.duration_seconds)}</span>
+                <time>${escapeHtml(dateLabel)}</time>
+                <button class="record-search-result__jump" type="button" data-open-search-session="${session.id}" data-task-id="${session.task_id}" title="跳转到此记录" aria-label="在完整专注历史中定位这条记录">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 16 16 8M10 8h6v6"/><path d="M18 13v5H6V6h5"/></svg>
+                </button>
+              </div>
+              <div class="markdown-content">${renderMarkdown(session.note)}</div>
+            </article>`;
+          })
+          .join('')
+      : '<div class="record-search-placeholder">没有找到符合条件的记录</div>';
+    upgradeTooltips(elements.recordSearchResults);
+  } catch (error) {
+    if (requestId !== recordSearchRequest) {
+      return;
+    }
+    elements.recordSearchSummary.textContent = '';
+    const errorMessage = error.message || '搜索失败';
+    const regexErrorIndex = errorMessage.indexOf('正则表达式无效');
+    elements.recordSearchError.textContent =
+      regexErrorIndex >= 0 ? errorMessage.slice(regexErrorIndex) : errorMessage;
+    elements.recordSearchError.hidden = false;
+    elements.recordSearchResults.innerHTML =
+      '<div class="record-search-placeholder">请修改搜索条件后重试</div>';
+  }
+}
+
 async function completeTimer() {
   clearInterval(state.interval);
+  state.interval = null;
+  state.endsAt = null;
   state.running = false;
   if (state.timerMode === 'focus') {
     const session = await window.pomodoro.recordSession({
@@ -1187,47 +1592,68 @@ async function completeTimer() {
       startedAt: state.startedAt,
     });
     state.completedSessionId = session.sessionId;
-    if (Notification.permission === 'granted') {
-      new Notification('番茄完成', { body: '这段专注已经记录，开始休息。' });
-    }
     playSound(state.focusEndSoundUrl, 'assets/sounds/focus-end.mp3');
     await refresh();
     state.timerMode = 'break';
     state.duration = state.activeBreakDuration * 60;
     state.remaining = state.duration;
     startTimer();
+    await window.pomodoro.notifyTimerCompletion({
+      title: '番茄完成',
+      body: '这段专注已经记录，开始休息。',
+      timer: timerPopupState(),
+    });
+    await window.pomodoro.showMainWindow();
+    openSessionNoteDialog(session.sessionId, state.activeTaskId);
     return;
   }
-  if (Notification.permission === 'granted') {
-    new Notification('休息结束', { body: '休息时间结束。' });
-  }
   playSound(state.breakEndSoundUrl, 'assets/sounds/break-end.mp3');
-  const completedTaskId = state.activeTaskId;
-  const completedSessionId = state.completedSessionId;
   state.timerMode = 'focus';
   state.duration = state.focusDuration * 60;
   state.remaining = state.duration;
   renderTimer();
   await window.pomodoro.hideTimerPopup();
+  state.timerPopupOpen = false;
+  await window.pomodoro.notifyTimerCompletion({
+    title: '休息结束',
+    body: '休息时间结束，可以开始下一个番茄。',
+  });
+  await window.pomodoro.showMainWindow();
   state.activeTaskId = null;
   state.completedSessionId = null;
-  openSessionNoteDialog(completedSessionId, completedTaskId);
+}
+
+function updateRemainingFromClock() {
+  if (!state.running || !state.endsAt) {
+    return;
+  }
+  state.remaining = Math.max(0, Math.ceil((state.endsAt - Date.now()) / 1000));
+}
+
+function syncTimerClock() {
+  if (!state.running) {
+    return;
+  }
+  updateRemainingFromClock();
+  renderTimer();
+  if (state.remaining <= 0 && !state.timerCompleting) {
+    state.timerCompleting = true;
+    completeTimer().finally(() => {
+      state.timerCompleting = false;
+    });
+  }
 }
 
 function startTimer() {
+  clearInterval(state.interval);
   state.running = true;
   if (state.remaining === state.duration) {
     state.startedAt = new Date().toISOString();
   }
+  state.endsAt = Date.now() + state.remaining * 1000;
   window.pomodoro.showTimerPopup(timerPopupState());
-  state.interval = setInterval(() => {
-    state.remaining -= 1;
-    renderTimer();
-    if (state.remaining <= 0) {
-      completeTimer();
-    }
-  }, 1000);
-  renderTimer();
+  state.interval = setInterval(syncTimerClock, 500);
+  syncTimerClock();
 }
 
 function startPomodoro(taskId) {
@@ -1254,22 +1680,28 @@ async function interruptTimer() {
   if (!state.running) {
     return;
   }
-  const elapsedSeconds = Math.max(0, state.duration - state.remaining);
+  updateRemainingFromClock();
+  let elapsedSeconds = Math.max(0, state.duration - state.remaining);
   const isFocus = state.timerMode === 'focus';
-  const completedTaskId = state.activeTaskId;
-  const completedSessionId = state.completedSessionId;
-  const confirmed = await confirmInterrupt(
-    isFocus ? '打断当前番茄？' : '提前结束休息？',
-    isFocus
-      ? `已专注 ${formatTime(elapsedSeconds)} 将被记录，但不计入番茄次数。`
-      : '这个番茄已在专注结束时记录，提前结束休息不会影响番茄次数。',
-  );
-  if (!confirmed) {
-    return;
+  const discardShortFocus = isFocus && elapsedSeconds < 30;
+  if (!discardShortFocus) {
+    const confirmed = await confirmInterrupt(
+      isFocus ? '打断当前番茄？' : '提前结束休息？',
+      isFocus
+        ? `已专注 ${formatTime(elapsedSeconds)} 将被记录，但不计入番茄次数。`
+        : '这个番茄已在专注结束时记录，提前结束休息不会影响番茄次数。',
+    );
+    if (!confirmed) {
+      return;
+    }
   }
+  updateRemainingFromClock();
+  elapsedSeconds = Math.max(0, state.duration - state.remaining);
   clearInterval(state.interval);
+  state.interval = null;
+  state.endsAt = null;
   state.running = false;
-  if (state.timerMode === 'focus' && elapsedSeconds > 0) {
+  if (state.timerMode === 'focus' && !discardShortFocus && elapsedSeconds >= 30) {
     await window.pomodoro.recordSession({
       taskId: state.activeTaskId,
       durationSeconds: elapsedSeconds,
@@ -1286,8 +1718,15 @@ async function interruptTimer() {
   state.completedSessionId = null;
   renderTimer();
   await refresh();
-  if (!isFocus) {
-    openSessionNoteDialog(completedSessionId, completedTaskId);
+  if (discardShortFocus) {
+    await showActionDialog({
+      mode: 'notice',
+      eyebrow: '本次未记录',
+      title: '计时已结束',
+      message: `本次专注时长为 ${formatTime(elapsedSeconds)}，不足 30 秒。`,
+      detail: '为避免误触产生无效数据，本次计时不会写入数据库。',
+      confirmLabel: '知道了',
+    });
   }
 }
 
@@ -1369,10 +1808,10 @@ elements.sessionNoteForm.addEventListener('submit', async (event) => {
     if (historySession) {
       historySession.note = note;
       const noteElement = elements.taskHistoryContent.querySelector(
-        `[data-session-note="${sessionId}"] p`,
+        `[data-session-note="${sessionId}"] .markdown-content`,
       );
       if (noteElement) {
-        noteElement.textContent = note || '未填写';
+        noteElement.innerHTML = renderMarkdown(note);
       }
     }
   }
@@ -1382,6 +1821,22 @@ elements.sessionNoteForm.addEventListener('submit', async (event) => {
 document.querySelector('#skip-session-note').addEventListener('click', () => {
   state.pendingNoteSessionId = null;
   elements.sessionNoteDialog.close();
+});
+elements.markdownHelpToggle.addEventListener('click', () => {
+  const open = elements.markdownHelpPanel.hidden;
+  elements.markdownHelpPanel.hidden = !open;
+  elements.markdownHelpToggle.setAttribute('aria-expanded', String(open));
+  elements.markdownHelpToggle.querySelector('span').textContent = open
+    ? '收起语法帮助'
+    : 'Markdown 语法帮助';
+});
+document.addEventListener('click', (event) => {
+  const link = event.target.closest('a[data-markdown-link]');
+  if (!link) {
+    return;
+  }
+  event.preventDefault();
+  window.pomodoro.openExternalLink(link.dataset.markdownLink);
 });
 elements.taskHistoryContent.addEventListener('click', (event) => {
   const button = event.target.closest('button[data-edit-session-note]');
@@ -1395,6 +1850,73 @@ elements.taskHistoryContent.addEventListener('click', (event) => {
   }
 });
 
+elements.historyBackToSearch.addEventListener('click', () => {
+  elements.taskHistoryDialog.close();
+  state.historyOpenedFromSearch = false;
+  elements.historyBackToSearch.hidden = true;
+  elements.recordSearchDialog.showModal();
+  window.requestAnimationFrame(() => {
+    elements.recordSearchResults.scrollTop = state.recordSearchScrollTop;
+  });
+});
+
+elements.searchRecords.addEventListener('click', () => {
+  if (!elements.recordSearchDialog.open) {
+    elements.recordSearchDialog.showModal();
+  }
+  elements.recordSearchInput.focus();
+  if (elements.recordSearchInput.value.trim()) {
+    runRecordSearch();
+  }
+});
+elements.closeRecordSearch.addEventListener('click', () => elements.recordSearchDialog.close());
+elements.recordSearchInput.addEventListener('input', () => {
+  window.clearTimeout(recordSearchTimer);
+  recordSearchTimer = window.setTimeout(runRecordSearch, 180);
+});
+elements.recordSearchRegex.addEventListener('change', runRecordSearch);
+elements.recordSearchCase.addEventListener('change', runRecordSearch);
+elements.recordSearchResults.addEventListener('click', async (event) => {
+  const button = event.target.closest('button[data-open-search-session]');
+  if (!button) {
+    return;
+  }
+  const taskId = Number(button.dataset.taskId);
+  const sessionId = Number(button.dataset.openSearchSession);
+  const rootTaskId = topLevelTaskId(taskId);
+  if (!rootTaskId) {
+    return;
+  }
+  state.recordSearchScrollTop = elements.recordSearchResults.scrollTop;
+  await openTaskHistory(rootTaskId, {
+    fromSearch: true,
+    targetSessionId: sessionId,
+  });
+});
+elements.recordSearchInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    runRecordSearch();
+  }
+});
+elements.taskSearchInput.addEventListener('input', (event) => {
+  state.taskFilter = event.target.value;
+  renderTasks();
+});
+elements.clearTaskSearch.addEventListener('click', () => {
+  elements.taskSearchInput.value = '';
+  state.taskFilter = '';
+  renderTasks();
+  elements.taskSearchInput.focus();
+});
+elements.taskSearchInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && state.taskFilter) {
+    event.preventDefault();
+    elements.taskSearchInput.value = '';
+    state.taskFilter = '';
+    renderTasks();
+  }
+});
 elements.addGroup.addEventListener('click', () => {
   state.editingGroupId = null;
   elements.groupName.value = '';
@@ -1575,6 +2097,16 @@ elements.form.addEventListener('submit', async (event) => {
   await refresh();
 });
 elements.rootList.addEventListener('click', async (event) => {
+  const moveButton = event.target.closest('button[data-move-task], button[data-move-group]');
+  if (moveButton) {
+    if (moveButton.dataset.canMove !== 'true') {
+      return;
+    }
+    const id = Number(moveButton.dataset.moveTask || moveButton.dataset.moveGroup);
+    await window.pomodoro.moveTask(id, moveButton.dataset.direction);
+    await refresh();
+    return;
+  }
   const defaultButton = event.target.closest('button[data-set-default-group]');
   if (defaultButton) {
     const nextDefaultGroupId = defaultButton.dataset.setDefaultGroup;
@@ -1619,6 +2151,22 @@ elements.rootList.addEventListener('click', async (event) => {
     startPomodoro(Number(pomodoroButton.dataset.id));
     return;
   }
+  const completionButton = event.target.closest('button[data-action="toggle-complete"]');
+  if (completionButton) {
+    await window.pomodoro.toggleTask(Number(completionButton.dataset.id));
+    await refresh();
+    return;
+  }
+  const historyButton = event.target.closest('button[data-action="history"]');
+  if (historyButton) {
+    await openTaskHistory(Number(historyButton.dataset.id));
+    return;
+  }
+  const timerSettingsButton = event.target.closest('button[data-action="timer-settings"]');
+  if (timerSettingsButton) {
+    openTaskTimerDialog(Number(timerSettingsButton.dataset.id));
+    return;
+  }
   const renameButton = event.target.closest('button[data-action="rename"]');
   if (renameButton) {
     openTaskRenameDialog(Number(renameButton.dataset.id));
@@ -1629,12 +2177,27 @@ elements.rootList.addEventListener('click', async (event) => {
     openDialog(Number(childButton.dataset.id));
     return;
   }
-  const button = event.target.closest('button[data-root-select]');
+  const collapseButton = event.target.closest('button[data-action="collapse-one"]');
+  if (collapseButton) {
+    const id = Number(collapseButton.dataset.id);
+    if (state.collapsedTaskIds.has(id)) {
+      state.collapsedTaskIds.delete(id);
+    } else {
+      state.collapsedTaskIds.add(id);
+    }
+    renderTasks();
+    return;
+  }
+  const button = event.target.closest('button[data-tree-select]');
   if (!button) {
     return;
   }
   if (state.groupSelectionMode) {
-    const taskId = Number(button.dataset.rootSelect);
+    const taskId = Number(button.dataset.treeSelect);
+    const task = taskById(taskId);
+    if (!task || !state.taskGroups.some((group) => String(task.parent_id) === group.id)) {
+      return;
+    }
     if (state.selectedTaskIds.has(taskId)) {
       state.selectedTaskIds.delete(taskId);
     } else {
@@ -1643,7 +2206,25 @@ elements.rootList.addEventListener('click', async (event) => {
     renderTasks();
     return;
   }
-  state.selectedRootId = Number(button.dataset.rootSelect);
+});
+elements.rootList.addEventListener('dblclick', (event) => {
+  if (event.target.closest('button:not(.root-select), input')) {
+    return;
+  }
+  const item = event.target.closest('.tree-task[data-task-id]');
+  if (!item) {
+    return;
+  }
+  const id = Number(item.dataset.taskId);
+  if ((childMap().get(id) || []).length === 0) {
+    return;
+  }
+  event.preventDefault();
+  if (state.collapsedTaskIds.has(id)) {
+    state.collapsedTaskIds.delete(id);
+  } else {
+    state.collapsedTaskIds.add(id);
+  }
   renderTasks();
 });
 elements.rootList.addEventListener('change', (event) => {
@@ -1683,13 +2264,11 @@ elements.rootList.addEventListener('change', (event) => {
   }
 });
 elements.rootList.addEventListener('contextmenu', (event) => {
-  const item = event.target.closest('[data-root-id]');
+  const item = event.target.closest('[data-task-id]');
   if (!item) {
     return;
   }
-  state.selectedRootId = Number(item.dataset.rootId);
-  renderTasks();
-  showContextMenu(event, Number(item.dataset.rootId));
+  showContextMenu(event, Number(item.dataset.taskId));
 });
 elements.rootList.addEventListener('dragstart', (event) => {
   const item = event.target.closest('.root-item[data-root-id]');
@@ -1754,48 +2333,6 @@ elements.rootList.addEventListener('dragend', () => {
     item.classList.remove('dragging', 'drag-over');
   });
 });
-elements.tree.addEventListener('click', async (event) => {
-  const button = event.target.closest('button[data-action]');
-  if (!button) {
-    return;
-  }
-  const id = Number(button.dataset.id);
-  if (button.dataset.action === 'child') {
-    openDialog(id);
-  }
-  if (button.dataset.action === 'rename') {
-    openTaskRenameDialog(id);
-  }
-  if (button.dataset.action === 'toggle') {
-    await window.pomodoro.toggleTask(id);
-    await refresh();
-  }
-  if (button.dataset.action === 'collapse-one') {
-    if (state.collapsedTaskIds.has(id)) {
-      state.collapsedTaskIds.delete(id);
-    } else {
-      state.collapsedTaskIds.add(id);
-    }
-    renderTasks();
-  }
-  if (button.dataset.action === 'start-pomodoro') {
-    startPomodoro(id);
-  }
-  if (
-    button.dataset.action === 'delete' &&
-    (await confirmDeletion('删除这个事项？', '该事项、所有子项以及相关专注记录都会被删除。'))
-  ) {
-    await window.pomodoro.deleteTask(id);
-    await refresh();
-  }
-});
-elements.tree.addEventListener('contextmenu', (event) => {
-  const item = event.target.closest('.task[data-task-id]');
-  if (!item) {
-    return;
-  }
-  showContextMenu(event, Number(item.dataset.taskId));
-});
 elements.contextMenu.addEventListener('click', async (event) => {
   const button = event.target.closest('button[data-context-action]');
   if (!button) {
@@ -1803,19 +2340,6 @@ elements.contextMenu.addEventListener('click', async (event) => {
   }
   const id = Number(elements.contextMenu.dataset.taskId);
   hideContextMenu();
-  if (button.dataset.contextAction === 'child') {
-    openDialog(id);
-  }
-  if (button.dataset.contextAction === 'toggle') {
-    await window.pomodoro.toggleTask(id);
-    await refresh();
-  }
-  if (button.dataset.contextAction === 'timer-settings') {
-    openTaskTimerDialog(id);
-  }
-  if (button.dataset.contextAction === 'history') {
-    await openTaskHistory(id);
-  }
   if (button.dataset.contextAction === 'expand') {
     descendantIds(id, childMap()).forEach((taskId) => state.collapsedTaskIds.delete(taskId));
     state.collapsedTaskIds.delete(id);
@@ -1830,17 +2354,18 @@ elements.contextMenu.addEventListener('click', async (event) => {
     });
     renderTasks();
   }
+  const deletionPath = taskPath(id);
   if (
     button.dataset.contextAction === 'delete' &&
-    (await confirmDeletion('删除这个事项？', '该事项、所有子项以及相关专注记录都会被删除。'))
+    (await confirmDeletion(
+      `删除“${deletionPath}”？`,
+      `将删除事项“${deletionPath}”、它的所有子项以及相关专注记录。`,
+    ))
   ) {
     await window.pomodoro.deleteTask(id);
     await refresh();
   }
 });
-if (Notification.permission === 'default') {
-  Notification.requestPermission();
-}
 elements.zoomRange.addEventListener('input', async () => {
   const config = await window.pomodoro.setZoomFactor(Number(elements.zoomRange.value) / 100);
   showSettings(config);
@@ -1962,6 +2487,12 @@ document.addEventListener('keydown', (event) => {
   }
 });
 document.addEventListener('scroll', hideContextMenu, true);
+window.addEventListener('focus', syncTimerClock);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    syncTimerClock();
+  }
+});
 window.pomodoro.getSettings().then((config) => {
   state.focusDurations = [...config.focusDurations];
   state.breakDurations = [...config.breakDurations];

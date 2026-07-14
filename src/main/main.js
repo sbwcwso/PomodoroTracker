@@ -1,7 +1,16 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
-const { app, BrowserWindow, dialog, ipcMain, Menu, screen } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  Notification,
+  screen,
+  shell,
+} = require('electron');
 const { AppDatabase } = require('./database');
 const { ConfigStore } = require('./config-store');
 
@@ -87,6 +96,7 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
+      backgroundThrottling: false,
     },
   });
   if (config.windowMaximized) {
@@ -173,6 +183,7 @@ function showTimerPopup(timer) {
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: false,
+        backgroundThrottling: false,
       },
     });
     const popup = timerPopup;
@@ -201,10 +212,39 @@ function showTimerPopup(timer) {
   return true;
 }
 
+function resizeTimerPopup(requestedWidth) {
+  if (!timerPopup || timerPopup.isDestroyed()) {
+    return false;
+  }
+  const currentBounds = timerPopup.getBounds();
+  const { workArea } = screen.getDisplayMatching(currentBounds);
+  const width = Math.min(
+    Math.max(280, Math.round(Number(requestedWidth) || 280)),
+    Math.min(620, workArea.width),
+  );
+  const x = Math.min(Math.max(currentBounds.x, workArea.x), workArea.x + workArea.width - width);
+  timerPopup.setBounds({ x, y: currentBounds.y, width, height: currentBounds.height }, true);
+  return true;
+}
+
+function showMainWindow() {
+  const mainWindow = BrowserWindow.getAllWindows().find((window) => window !== timerPopup);
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return false;
+  }
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+  mainWindow.show();
+  mainWindow.focus();
+  return true;
+}
+
 function registerHandlers() {
   ipcMain.handle('tasks:list', () => database.listTasks());
   ipcMain.handle('tasks:create', (_event, input) => database.createTask(input));
   ipcMain.handle('tasks:rename', (_event, id, title) => database.renameTask(id, title));
+  ipcMain.handle('tasks:move', (_event, id, direction) => database.moveTask(id, direction));
   ipcMain.handle('tasks:setDefaultGroup', (_event, id) => database.setDefaultGroup(id));
   ipcMain.handle('tasks:setGroupCollapsed', (_event, id, collapsed) =>
     database.setGroupCollapsed(id, collapsed),
@@ -222,6 +262,7 @@ function registerHandlers() {
     database.updateSessionNote(sessionId, note),
   );
   ipcMain.handle('sessions:listForTask', (_event, taskId) => database.listTaskSessions(taskId));
+  ipcMain.handle('sessions:searchNotes', (_event, input) => database.searchSessionNotes(input));
   ipcMain.handle('summary:get', () => database.getSummary());
   ipcMain.handle('dashboard:get', (_event, input = {}) =>
     database.getDashboardData({
@@ -301,6 +342,20 @@ function registerHandlers() {
     return config;
   });
   ipcMain.handle('timer-popup:show', (_event, timer) => showTimerPopup(timer));
+  ipcMain.handle('timer-popup:resize', (_event, width) => resizeTimerPopup(width));
+  ipcMain.handle('window:showMain', () => showMainWindow());
+  ipcMain.handle('window:openExternal', (_event, value) => {
+    try {
+      const url = new globalThis.URL(String(value || ''));
+      if (!['http:', 'https:', 'mailto:'].includes(url.protocol)) {
+        return false;
+      }
+      shell.openExternal(url.href);
+      return true;
+    } catch {
+      return false;
+    }
+  });
   ipcMain.handle('timer-popup:update', (_event, timer) => {
     timerPopup?.webContents.send('timer-popup:update', timer);
   });
@@ -309,6 +364,21 @@ function registerHandlers() {
     timerPopup = null;
     notifyTimerPopupVisibility(false);
     return false;
+  });
+  ipcMain.handle('timer:notifyCompletion', (event, payload = {}) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (Notification.isSupported()) {
+      new Notification({
+        title: String(payload.title || '计时结束'),
+        body: String(payload.body || ''),
+        silent: true,
+      }).show();
+    }
+    window?.flashFrame(true);
+    if (payload.timer) {
+      showTimerPopup(payload.timer);
+    }
+    return true;
   });
   ipcMain.handle('app:action', (event, action) => {
     const window = BrowserWindow.fromWebContents(event.sender);

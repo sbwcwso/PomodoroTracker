@@ -59,6 +59,7 @@ class AppDatabase {
         status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'done')),
         focus_minutes INTEGER,
         break_minutes INTEGER,
+        sort_order INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         completed_at TEXT
       );
@@ -91,6 +92,10 @@ class AppDatabase {
     if (!taskColumns.has('is_default_group')) {
       this.db.exec('ALTER TABLE tasks ADD COLUMN is_default_group INTEGER NOT NULL DEFAULT 0');
     }
+    if (!taskColumns.has('sort_order')) {
+      this.db.exec('ALTER TABLE tasks ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0');
+      this.db.exec('UPDATE tasks SET sort_order = id');
+    }
     const sessionColumns = new Set(
       this.db.pragma('table_info(pomodoro_sessions)').map((column) => column.name),
     );
@@ -119,7 +124,7 @@ class AppDatabase {
       FROM tasks t
       JOIN task_tree ON task_tree.root_id = t.id
       LEFT JOIN pomodoro_sessions s ON s.task_id = task_tree.descendant_id
-      GROUP BY t.id ORDER BY t.status, t.created_at
+      GROUP BY t.id ORDER BY t.sort_order, t.id
     `,
       )
       .all();
@@ -142,9 +147,17 @@ class AppDatabase {
         throw new Error('同一个父事项下不能存在同名子事项');
       }
     }
+    const nextSortOrder =
+      this.db
+        .prepare(
+          'SELECT COALESCE(MAX(sort_order), -1) + 1 AS value FROM tasks WHERE parent_id IS ?',
+        )
+        .get(parentId).value || 0;
     const result = this.db
-      .prepare('INSERT INTO tasks (title, parent_id, notes, is_group) VALUES (?, ?, ?, ?)')
-      .run(cleanTitle, parentId, String(notes || '').trim(), isGroup ? 1 : 0);
+      .prepare(
+        'INSERT INTO tasks (title, parent_id, notes, is_group, sort_order) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run(cleanTitle, parentId, String(notes || '').trim(), isGroup ? 1 : 0, nextSortOrder);
     return this.db.prepare('SELECT * FROM tasks WHERE id = ?').get(result.lastInsertRowid);
   }
 
@@ -282,15 +295,74 @@ class AppDatabase {
   }
 
   toggleTask(id) {
-    const task = this.db.prepare('SELECT status FROM tasks WHERE id = ?').get(id);
+    const task = this.db.prepare('SELECT id, status FROM tasks WHERE id = ?').get(id);
     if (!task) {
       throw new Error('事项不存在');
     }
     const next = task.status === 'done' ? 'active' : 'done';
-    this.db
-      .prepare(`UPDATE tasks SET status = ?, completed_at = ? WHERE id = ?`)
-      .run(next, next === 'done' ? new Date().toISOString() : null, id);
-    return { id, status: next };
+    const updateTree = this.db.transaction(() => {
+      if (next === 'done') {
+        return this.db
+          .prepare(
+            `
+              WITH RECURSIVE subtree(id) AS (
+                SELECT id FROM tasks WHERE id = ?
+                UNION ALL
+                SELECT child.id
+                FROM tasks child
+                JOIN subtree parent ON child.parent_id = parent.id
+              )
+              UPDATE tasks
+              SET status = 'done', completed_at = ?
+              WHERE id IN (SELECT id FROM subtree)
+            `,
+          )
+          .run(id, new Date().toISOString()).changes;
+      }
+      return this.db
+        .prepare(
+          `
+            WITH RECURSIVE ancestors(id, parent_id) AS (
+              SELECT id, parent_id FROM tasks WHERE id = ?
+              UNION ALL
+              SELECT parent.id, parent.parent_id
+              FROM tasks parent
+              JOIN ancestors child ON parent.id = child.parent_id
+            )
+            UPDATE tasks
+            SET status = 'active', completed_at = NULL
+            WHERE id IN (SELECT id FROM ancestors)
+          `,
+        )
+        .run(id).changes;
+    });
+    return { id, status: next, changed: updateTree() };
+  }
+
+  moveTask(id, direction) {
+    if (direction !== 'up' && direction !== 'down') {
+      throw new Error('移动方向无效');
+    }
+    const task = this.db.prepare('SELECT id, parent_id FROM tasks WHERE id = ?').get(id);
+    if (!task) {
+      throw new Error('事项不存在');
+    }
+    const move = this.db.transaction(() => {
+      const siblings = this.db
+        .prepare('SELECT id FROM tasks WHERE parent_id IS ? ORDER BY sort_order, id')
+        .all(task.parent_id);
+      const currentIndex = siblings.findIndex((sibling) => sibling.id === task.id);
+      const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      if (currentIndex < 0 || targetIndex < 0 || targetIndex >= siblings.length) {
+        return { id, direction, moved: false, boundary: direction === 'up' ? 'top' : 'bottom' };
+      }
+      const setOrder = this.db.prepare('UPDATE tasks SET sort_order = ? WHERE id = ?');
+      siblings.forEach((sibling, index) => setOrder.run(index, sibling.id));
+      setOrder.run(targetIndex, task.id);
+      setOrder.run(currentIndex, siblings[targetIndex].id);
+      return { id, direction, moved: true };
+    });
+    return move();
   }
 
   deleteTask(id) {
@@ -323,6 +395,10 @@ class AppDatabase {
     if (!task || task.is_group === 1) {
       throw new Error('顶层分组不能直接计时');
     }
+    const normalizedDuration = Math.max(0, Math.floor(Number(durationSeconds) || 0));
+    if (!countsAsPomodoro && normalizedDuration < 30) {
+      return { taskId, sessionId: null, skipped: true };
+    }
     const result = this.db
       .prepare(
         `
@@ -333,13 +409,13 @@ class AppDatabase {
       )
       .run(
         taskId,
-        durationSeconds,
+        normalizedDuration,
         startedAt,
         new Date().toISOString(),
         countsAsPomodoro ? 1 : 0,
         note,
       );
-    return { taskId, sessionId: Number(result.lastInsertRowid) };
+    return { taskId, sessionId: Number(result.lastInsertRowid), skipped: false };
   }
 
   updateSessionNote(sessionId, note) {
@@ -353,6 +429,41 @@ class AppDatabase {
       throw new Error('专注记录不存在');
     }
     return { sessionId };
+  }
+
+  searchSessionNotes({ query, useRegex = false, caseSensitive = false } = {}) {
+    const searchText = String(query || '').trim();
+    if (!searchText) {
+      return [];
+    }
+    let matches;
+    if (useRegex) {
+      let expression;
+      try {
+        expression = new RegExp(searchText, caseSensitive ? 'u' : 'iu');
+      } catch (error) {
+        throw new Error(`正则表达式无效：${error.message}`);
+      }
+      matches = (note) => expression.test(note);
+    } else {
+      const expected = caseSensitive ? searchText : searchText.toLocaleLowerCase('zh-CN');
+      matches = (note) =>
+        (caseSensitive ? note : note.toLocaleLowerCase('zh-CN')).includes(expected);
+    }
+    return this.db
+      .prepare(
+        `
+          SELECT s.id, s.task_id, s.duration_seconds, s.started_at, s.completed_at,
+                 s.counts_as_pomodoro, s.note, t.title AS task_title
+          FROM pomodoro_sessions s
+          JOIN tasks t ON t.id = s.task_id
+          WHERE length(trim(s.note)) > 0
+          ORDER BY datetime(s.completed_at) DESC, s.id DESC
+        `,
+      )
+      .all()
+      .filter((session) => matches(session.note))
+      .slice(0, 300);
   }
 
   listTaskSessions(taskId) {

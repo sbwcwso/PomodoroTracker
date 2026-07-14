@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('pomodoro', {
   listTasks: () => ipcRenderer.invoke('tasks:list'),
   createTask: (input) => ipcRenderer.invoke('tasks:create', input),
   renameTask: (id, title) => ipcRenderer.invoke('tasks:rename', id, title),
+  moveTask: (id, direction) => ipcRenderer.invoke('tasks:move', id, direction),
   setDefaultGroup: (id) => ipcRenderer.invoke('tasks:setDefaultGroup', id),
   setGroupCollapsed: (id, collapsed) =>
     ipcRenderer.invoke('tasks:setGroupCollapsed', id, collapsed),
@@ -15,6 +16,7 @@ contextBridge.exposeInMainWorld('pomodoro', {
   updateSessionNote: (sessionId, note) =>
     ipcRenderer.invoke('sessions:updateNote', sessionId, note),
   listTaskSessions: (taskId) => ipcRenderer.invoke('sessions:listForTask', taskId),
+  searchSessionNotes: (input) => ipcRenderer.invoke('sessions:searchNotes', input),
   getSummary: () => ipcRenderer.invoke('summary:get'),
   getDashboard: (input) => ipcRenderer.invoke('dashboard:get', input),
   getSettings: () => ipcRenderer.invoke('settings:get'),
@@ -30,6 +32,10 @@ contextBridge.exposeInMainWorld('pomodoro', {
   showTimerPopup: (timer) => ipcRenderer.invoke('timer-popup:show', timer),
   updateTimerPopup: (timer) => ipcRenderer.invoke('timer-popup:update', timer),
   hideTimerPopup: () => ipcRenderer.invoke('timer-popup:hide'),
+  resizeTimerPopup: (width) => ipcRenderer.invoke('timer-popup:resize', width),
+  showMainWindow: () => ipcRenderer.invoke('window:showMain'),
+  openExternalLink: (url) => ipcRenderer.invoke('window:openExternal', url),
+  notifyTimerCompletion: (payload) => ipcRenderer.invoke('timer:notifyCompletion', payload),
   onTimerPopupUpdate: (callback) =>
     ipcRenderer.on('timer-popup:update', (_event, value) => callback(value)),
   onTimerPopupVisibility: (callback) =>
