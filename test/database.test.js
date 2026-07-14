@@ -188,6 +188,24 @@ test('moves tasks within the same parent and reports ordering boundaries', () =>
   database.close();
 });
 
+test('moves active tasks independently from completed siblings', () => {
+  const database = new AppDatabase(':memory:');
+  const parent = database.createTask({ title: 'Parent' });
+  const first = database.createTask({ title: 'First', parentId: parent.id });
+  const completed = database.createTask({ title: 'Completed', parentId: parent.id });
+  database.createTask({ title: 'Third', parentId: parent.id });
+
+  database.toggleTask(completed.id);
+  assert.equal(database.moveTask(first.id, 'down').moved, true);
+  const activeTitles = database
+    .listTasks()
+    .filter((task) => task.parent_id === parent.id && task.status === 'active')
+    .map((task) => task.title);
+  assert.deepEqual(activeTitles, ['Third', 'First']);
+  assert.equal(database.moveTask(first.id, 'down').boundary, 'bottom');
+  database.close();
+});
+
 test('migrates UI groups into database hierarchy once', () => {
   const database = new AppDatabase(':memory:');
   const first = database.createTask({ title: 'CS' });

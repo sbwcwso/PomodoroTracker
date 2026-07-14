@@ -162,7 +162,7 @@ class AppDatabase {
   }
 
   renameTask(id, title) {
-    const task = this.db.prepare('SELECT id, parent_id FROM tasks WHERE id = ?').get(id);
+    const task = this.db.prepare('SELECT id, parent_id, status FROM tasks WHERE id = ?').get(id);
     if (!task) {
       throw new Error('事项不存在');
     }
@@ -343,23 +343,24 @@ class AppDatabase {
     if (direction !== 'up' && direction !== 'down') {
       throw new Error('移动方向无效');
     }
-    const task = this.db.prepare('SELECT id, parent_id FROM tasks WHERE id = ?').get(id);
+    const task = this.db.prepare('SELECT id, parent_id, status FROM tasks WHERE id = ?').get(id);
     if (!task) {
       throw new Error('事项不存在');
     }
     const move = this.db.transaction(() => {
       const siblings = this.db
-        .prepare('SELECT id FROM tasks WHERE parent_id IS ? ORDER BY sort_order, id')
-        .all(task.parent_id);
+        .prepare(
+          'SELECT id, sort_order FROM tasks WHERE parent_id IS ? AND status = ? ORDER BY sort_order, id',
+        )
+        .all(task.parent_id, task.status);
       const currentIndex = siblings.findIndex((sibling) => sibling.id === task.id);
       const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
       if (currentIndex < 0 || targetIndex < 0 || targetIndex >= siblings.length) {
         return { id, direction, moved: false, boundary: direction === 'up' ? 'top' : 'bottom' };
       }
       const setOrder = this.db.prepare('UPDATE tasks SET sort_order = ? WHERE id = ?');
-      siblings.forEach((sibling, index) => setOrder.run(index, sibling.id));
-      setOrder.run(targetIndex, task.id);
-      setOrder.run(currentIndex, siblings[targetIndex].id);
+      setOrder.run(siblings[targetIndex].sort_order, task.id);
+      setOrder.run(siblings[currentIndex].sort_order, siblings[targetIndex].id);
       return { id, direction, moved: true };
     });
     return move();

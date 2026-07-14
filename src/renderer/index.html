@@ -72,6 +72,17 @@
         <strong id="active-timer-title" class="active-timer__title">未选择事项</strong>
       </div>
       <time id="active-timer-time" class="active-timer__time">25:00</time>
+      <button
+        id="active-timer-note"
+        class="active-timer__note"
+        type="button"
+        title="记录当前番茄的想法"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 4.5h11a2 2 0 0 1 2 2V13M5 4.5v15h8M8 9h7M8 13h4M15 19l4.5-4.5-2-2L13 17v2z" />
+        </svg>
+        <span>随手记</span>
+      </button>
       <button id="open-timer-popup" class="active-timer__open" type="button">打开小窗</button>
       <button id="interrupt-timer" class="active-timer__interrupt" type="button">打断</button>
     </aside>
@@ -386,9 +397,24 @@
     </dialog>
     <dialog id="session-note-dialog" class="session-note-dialog">
       <form id="session-note-form" method="dialog">
-        <span class="eyebrow">番茄小结</span>
+        <span id="session-note-eyebrow" class="eyebrow">番茄小结</span>
         <h2 id="session-note-heading">这个番茄完成了什么？</h2>
         <p id="session-note-task" class="dialog-description"></p>
+        <div id="session-note-meta" class="session-note-meta" hidden>
+          <div class="session-note-meta__item">
+            <span>日期</span>
+            <strong id="session-note-date">--</strong>
+          </div>
+          <div class="session-note-meta__item">
+            <span>计时时间</span>
+            <strong id="session-note-time">--:--:-- 至 --:--:--</strong>
+          </div>
+          <div class="session-note-meta__item">
+            <span>实际时长</span>
+            <strong id="session-note-duration">0 秒</strong>
+          </div>
+          <span id="session-note-status" class="session-note-meta__status">完整番茄</span>
+        </div>
         <div class="session-note-editor__label">
           <label for="session-note">事情记录</label>
           <button
@@ -423,7 +449,7 @@
         ></textarea>
         <div class="dialog-actions">
           <button id="skip-session-note" type="button">暂不填写</button>
-          <button class="primary" type="submit">保存记录</button>
+          <button id="session-note-submit" class="primary" type="submit">保存记录</button>
         </div>
       </form>
     </dialog>

@@ -14,6 +14,10 @@ const {
 const { AppDatabase } = require('./database');
 const { ConfigStore } = require('./config-store');
 
+// Timer completions happen without a fresh click. Linux Chromium builds can otherwise
+// reject media playback after the window has remained in the background for a while.
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+
 let database;
 let configStore;
 let timerPopup;
