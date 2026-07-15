@@ -25,6 +25,14 @@ let database;
 let configStore;
 let timerPopup;
 const DEFAULT_WINDOW_SIZE = Object.freeze({ width: 1940, height: 1189 });
+const NATURE_SOUND_FILES = Object.freeze({
+  'heavy-rain': 'heavy-rain.ogg',
+  'forest-rain': 'forest-rain.ogg',
+  stream: 'stream.ogg',
+  thunderstorm: 'thunderstorm.ogg',
+  wind: 'wind.ogg',
+  fireplace: 'fireplace.ogg',
+});
 
 function defaultDatabasePath() {
   return path.join(app.getPath('userData'), 'pomodoro.sqlite3');
@@ -331,6 +339,15 @@ function registerHandlers() {
     }),
   );
   ipcMain.handle('settings:get', () => publicConfig());
+  ipcMain.handle('nature-sounds:load', (_event, id) => {
+    const filename = NATURE_SOUND_FILES[String(id)];
+    if (!filename) {
+      throw new Error('未知的自然声');
+    }
+    return fs.promises.readFile(
+      path.join(__dirname, '..', 'renderer', 'assets', 'sounds', 'nature', filename),
+    );
+  });
   ipcMain.handle('settings:setZoom', (_event, value) => {
     configStore.setZoomFactor(value);
     const config = publicConfig();

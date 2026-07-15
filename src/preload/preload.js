@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('pomodoro', {
   getSummary: () => ipcRenderer.invoke('summary:get'),
   getDashboard: (input) => ipcRenderer.invoke('dashboard:get', input),
   getSettings: () => ipcRenderer.invoke('settings:get'),
+  loadNatureSound: (id) => ipcRenderer.invoke('nature-sounds:load', id),
   setZoomFactor: (value) => ipcRenderer.invoke('settings:setZoom', value),
   setDurations: (value) => ipcRenderer.invoke('settings:setDurations', value),
   setTimerPopupAlwaysOnTop: (value) =>

@@ -48,12 +48,12 @@ const state = {
   natureSoundVolumes: {},
 };
 const NATURE_SOUND_LIBRARY = Object.freeze([
-  { id: 'heavy-rain', url: 'assets/sounds/nature/heavy-rain.ogg' },
-  { id: 'forest-rain', url: 'assets/sounds/nature/forest-rain.ogg' },
-  { id: 'stream', url: 'assets/sounds/nature/stream.ogg' },
-  { id: 'thunderstorm', url: 'assets/sounds/nature/thunderstorm.ogg' },
-  { id: 'wind', url: 'assets/sounds/nature/wind.ogg' },
-  { id: 'fireplace', url: 'assets/sounds/nature/fireplace.ogg' },
+  { id: 'heavy-rain' },
+  { id: 'forest-rain' },
+  { id: 'stream' },
+  { id: 'thunderstorm' },
+  { id: 'wind' },
+  { id: 'fireplace' },
 ]);
 const elements = {
   rootList: document.querySelector('#root-list'),
@@ -338,6 +338,7 @@ function syncNatureSoundSettings(config) {
     slider.disabled = volume <= 0;
     output.textContent = `${slider.value}%`;
   });
+  preloadEnabledNatureSounds();
 }
 
 function collectNatureSoundSettings() {
@@ -1651,7 +1652,9 @@ function timerPopupState() {
 
 const activeSoundPlayers = new Set();
 const natureSoundPlayers = new Map();
-const natureSoundFadeTokens = new WeakMap();
+const natureSoundBufferPromises = new Map();
+let natureAudioContext = null;
+let natureSoundGeneration = 0;
 let fallbackAudioContext = null;
 
 function natureSoundTargetVolume(id) {
@@ -1660,52 +1663,80 @@ function natureSoundTargetVolume(id) {
   return Math.min(1, master * track);
 }
 
-function fadeAudioVolume(audio, target, duration = 500, onFinished = null) {
-  const token = Symbol('nature-sound-fade');
-  const initial = audio.volume;
-  const startedAt = window.performance.now();
-  natureSoundFadeTokens.set(audio, token);
-  const step = (now) => {
-    if (natureSoundFadeTokens.get(audio) !== token) {
-      return;
-    }
-    const progress = Math.min(1, (now - startedAt) / duration);
-    audio.volume = initial + (target - initial) * progress;
-    if (progress < 1) {
-      window.requestAnimationFrame(step);
-      return;
-    }
-    onFinished?.();
-  };
-  window.requestAnimationFrame(step);
+function getNatureAudioContext() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) {
+    return null;
+  }
+  natureAudioContext ||= new AudioContextClass();
+  return natureAudioContext;
 }
 
-function disposeNatureSound(audio) {
-  audio.pause();
-  audio.removeAttribute('src');
-  audio.load();
+async function loadNatureSoundBuffer(id) {
+  const context = getNatureAudioContext();
+  if (!context) {
+    throw new Error('当前环境不支持 Web Audio');
+  }
+  if (!natureSoundBufferPromises.has(id)) {
+    const promise = window.pomodoro
+      .loadNatureSound(id)
+      .then((data) => data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength))
+      .then((data) => context.decodeAudioData(data))
+      .catch((error) => {
+        natureSoundBufferPromises.delete(id);
+        throw error;
+      });
+    natureSoundBufferPromises.set(id, promise);
+  }
+  return natureSoundBufferPromises.get(id);
+}
+
+function rampNatureSoundVolume(player, target, duration = 0.18) {
+  const context = getNatureAudioContext();
+  if (!context) {
+    return;
+  }
+  const now = context.currentTime;
+  const gain = player.gain.gain;
+  if (typeof gain.cancelAndHoldAtTime === 'function') {
+    gain.cancelAndHoldAtTime(now);
+  } else {
+    const current = gain.value;
+    gain.cancelScheduledValues(now);
+    gain.setValueAtTime(current, now);
+  }
+  gain.linearRampToValueAtTime(Math.max(0, target), now + duration);
+}
+
+function retireNatureSoundPlayer(player, immediate = false) {
+  const context = getNatureAudioContext();
+  if (!context) {
+    return;
+  }
+  const fadeSeconds = immediate ? 0 : 0.45;
+  rampNatureSoundVolume(player, 0, fadeSeconds);
+  try {
+    player.source.stop(context.currentTime + fadeSeconds + 0.02);
+  } catch {
+    // The source may already have ended while the timer was being stopped.
+  }
 }
 
 function stopNatureSounds({ immediate = false } = {}) {
-  natureSoundPlayers.forEach((audio) => {
-    if (immediate) {
-      disposeNatureSound(audio);
-      return;
-    }
-    fadeAudioVolume(audio, 0, 450, () => disposeNatureSound(audio));
-  });
+  natureSoundGeneration += 1;
+  natureSoundPlayers.forEach((player) => retireNatureSoundPlayer(player, immediate));
   natureSoundPlayers.clear();
 }
 
 function syncNatureSoundPlayerVolumes() {
-  natureSoundPlayers.forEach((audio, id) => {
+  natureSoundPlayers.forEach((player, id) => {
     const target = natureSoundTargetVolume(id);
     if (target > 0) {
-      fadeAudioVolume(audio, target, 180);
+      rampNatureSoundVolume(player, target);
       return;
     }
     natureSoundPlayers.delete(id);
-    fadeAudioVolume(audio, 0, 250, () => disposeNatureSound(audio));
+    retireNatureSoundPlayer(player);
   });
 }
 
@@ -1714,38 +1745,65 @@ function startNatureSounds() {
     stopNatureSounds();
     return;
   }
-  NATURE_SOUND_LIBRARY.forEach(({ id, url }) => {
+  const context = getNatureAudioContext();
+  if (!context) {
+    return;
+  }
+  const generation = ++natureSoundGeneration;
+  context.resume().catch(() => {});
+  NATURE_SOUND_LIBRARY.forEach(({ id }) => {
     const target = natureSoundTargetVolume(id);
     const existing = natureSoundPlayers.get(id);
     if (target <= 0) {
       if (existing) {
         natureSoundPlayers.delete(id);
-        fadeAudioVolume(existing, 0, 250, () => disposeNatureSound(existing));
+        retireNatureSoundPlayer(existing);
       }
       return;
     }
     if (existing) {
-      fadeAudioVolume(existing, target, 180);
+      rampNatureSoundVolume(existing, target);
       return;
     }
-    const audio = new Audio(url);
-    natureSoundPlayers.set(id, audio);
-    audio.loop = true;
-    audio.preload = 'auto';
-    audio.volume = 0;
-    audio
-      .play()
-      .then(() => {
-        if (natureSoundPlayers.get(id) === audio) {
-          fadeAudioVolume(audio, target, 900);
+    loadNatureSoundBuffer(id)
+      .then((buffer) => {
+        if (
+          generation !== natureSoundGeneration ||
+          !state.running ||
+          state.timerMode !== 'focus' ||
+          !state.natureSoundsEnabled ||
+          natureSoundTargetVolume(id) <= 0 ||
+          natureSoundPlayers.has(id)
+        ) {
+          return;
         }
+        const source = context.createBufferSource();
+        const gain = context.createGain();
+        const player = { source, gain };
+        source.buffer = buffer;
+        source.loop = true;
+        gain.gain.setValueAtTime(0, context.currentTime);
+        source.connect(gain).connect(context.destination);
+        source.addEventListener('ended', () => {
+          source.disconnect();
+          gain.disconnect();
+        });
+        natureSoundPlayers.set(id, player);
+        source.start();
+        rampNatureSoundVolume(player, natureSoundTargetVolume(id), 0.9);
       })
       .catch(() => {
-        if (natureSoundPlayers.get(id) === audio) {
-          natureSoundPlayers.delete(id);
-        }
-        disposeNatureSound(audio);
+        // Keep the Pomodoro timer usable even if an optional sound cannot be decoded.
       });
+  });
+}
+
+function preloadEnabledNatureSounds() {
+  if (!state.natureSoundsEnabled) {
+    return;
+  }
+  NATURE_SOUND_LIBRARY.filter(({ id }) => natureSoundTargetVolume(id) > 0).forEach(({ id }) => {
+    loadNatureSoundBuffer(id).catch(() => {});
   });
 }
 
