@@ -1,5 +1,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const { Buffer } = require('node:buffer');
+const { spawn } = require('node:child_process');
+const { clearTimeout, setTimeout } = require('node:timers');
 const { pathToFileURL } = require('node:url');
 const {
   app,
@@ -231,7 +234,50 @@ function resizeTimerPopup(requestedWidth) {
   return true;
 }
 
-function showMainWindow() {
+function nativeWindowHandle(window) {
+  const handle = window.getNativeWindowHandle();
+  if (handle.length >= 8) {
+    return handle.readBigUInt64LE(0).toString();
+  }
+  return handle.readUInt32LE(0).toString();
+}
+
+function switchToWindowsWindow(window) {
+  return new Promise((resolve) => {
+    const handle = nativeWindowHandle(window);
+    const script = `
+$nativeMethods = Add-Type -MemberDefinition @'
+[DllImport("user32.dll")]
+public static extern void SwitchToThisWindow(IntPtr hWnd, bool fAltTab);
+'@ -Name NativeWindowActivation -Namespace PomodoroTracker -PassThru
+$nativeMethods::SwitchToThisWindow([IntPtr]([Int64]${handle}), $true)
+`;
+    const encodedScript = Buffer.from(script, 'utf16le').toString('base64');
+    const child = spawn(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-EncodedCommand', encodedScript],
+      { stdio: 'ignore', windowsHide: true },
+    );
+    let completed = false;
+    const finish = (activated) => {
+      if (completed) {
+        return;
+      }
+      completed = true;
+      clearTimeout(timeout);
+      resolve(activated);
+    };
+    const timeout = setTimeout(() => {
+      child.kill();
+      finish(false);
+    }, 3000);
+    timeout.unref();
+    child.once('error', () => finish(false));
+    child.once('exit', (code) => finish(code === 0));
+  });
+}
+
+async function showMainWindow() {
   const mainWindow = BrowserWindow.getAllWindows().find((window) => window !== timerPopup);
   if (!mainWindow || mainWindow.isDestroyed()) {
     return false;
@@ -240,7 +286,14 @@ function showMainWindow() {
     mainWindow.restore();
   }
   mainWindow.show();
-  mainWindow.focus();
+  if (process.platform === 'win32') {
+    const activated = await switchToWindowsWindow(mainWindow);
+    if (!activated && !mainWindow.isDestroyed()) {
+      mainWindow.focus();
+    }
+  } else {
+    mainWindow.focus();
+  }
   return true;
 }
 
