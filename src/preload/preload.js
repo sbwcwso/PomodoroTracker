@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('pomodoro', {
   setGroupCollapsed: (id, collapsed) =>
     ipcRenderer.invoke('tasks:setGroupCollapsed', id, collapsed),
   moveTasksToGroup: (taskIds, groupId) => ipcRenderer.invoke('tasks:moveToGroup', taskIds, groupId),
+  reparentTasks: (taskIds, parentId) => ipcRenderer.invoke('tasks:reparent', taskIds, parentId),
   toggleTask: (id) => ipcRenderer.invoke('tasks:toggle', id),
   deleteTask: (id) => ipcRenderer.invoke('tasks:delete', id),
   setTaskTimerSettings: (id, input) => ipcRenderer.invoke('tasks:setTimerSettings', id, input),

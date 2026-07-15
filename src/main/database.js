@@ -258,40 +258,113 @@ class AppDatabase {
   }
 
   moveTasks(taskIds, groupId) {
-    const ids = [...new Set((Array.isArray(taskIds) ? taskIds : []).map(Number))];
     const group = this.db
       .prepare('SELECT id FROM tasks WHERE id = ? AND is_group = 1')
       .get(groupId);
     if (!group) {
       throw new Error('目标分组不存在');
     }
+    return this.reparentTasks(taskIds, groupId);
+  }
+
+  reparentTasks(taskIds, parentId) {
+    const requestedIds = [...new Set((Array.isArray(taskIds) ? taskIds : []).map(Number))];
+    const parent = this.db
+      .prepare('SELECT id, is_group, status FROM tasks WHERE id = ?')
+      .get(parentId);
+    if (!parent) {
+      throw new Error('目标父事项不存在');
+    }
+    const allTasks = this.db.prepare('SELECT id, parent_id FROM tasks').all();
+    const taskParents = new Map(allTasks.map((task) => [task.id, task.parent_id]));
+    const requestedSet = new Set(requestedIds);
+    const ids = requestedIds.filter((id) => {
+      let ancestorId = taskParents.get(id);
+      while (ancestorId !== null && ancestorId !== undefined) {
+        if (requestedSet.has(ancestorId)) {
+          return false;
+        }
+        ancestorId = taskParents.get(ancestorId);
+      }
+      return true;
+    });
     const movingTasks = ids.map((id) =>
-      this.db.prepare('SELECT id, title, is_group FROM tasks WHERE id = ?').get(id),
+      this.db
+        .prepare('SELECT id, parent_id, title, status, is_group FROM tasks WHERE id = ?')
+        .get(id),
     );
     if (movingTasks.some((task) => !task || task.is_group === 1)) {
       throw new Error('只能移动普通事项');
+    }
+    for (const task of movingTasks) {
+      const descendant = this.db
+        .prepare(
+          `
+            WITH RECURSIVE subtree(id) AS (
+              SELECT id FROM tasks WHERE id = ?
+              UNION ALL
+              SELECT child.id
+              FROM tasks child
+              JOIN subtree parent ON child.parent_id = parent.id
+            )
+            SELECT id FROM subtree WHERE id = ?
+          `,
+        )
+        .get(task.id, parentId);
+      if (descendant) {
+        throw new Error('不能将事项移动到自身或其子事项中');
+      }
     }
     const movingSet = new Set(ids);
     const titles = new Set(
       this.db
         .prepare('SELECT id, title FROM tasks WHERE parent_id = ?')
-        .all(groupId)
+        .all(parentId)
         .filter((task) => !movingSet.has(task.id))
         .map((task) => normalizedTaskTitle(task.title)),
     );
     movingTasks.forEach((task) => {
       const title = normalizedTaskTitle(task.title);
       if (titles.has(title)) {
-        throw new Error(`目标分组中已存在“${task.title}”`);
+        throw new Error(`目标位置中已存在“${task.title}”`);
       }
       titles.add(title);
     });
     const move = this.db.transaction(() => {
-      const statement = this.db.prepare('UPDATE tasks SET parent_id = ? WHERE id = ?');
-      ids.forEach((id) => statement.run(groupId, id));
+      let sortOrder =
+        this.db
+          .prepare(
+            'SELECT COALESCE(MAX(sort_order), -1) + 1 AS value FROM tasks WHERE parent_id = ?',
+          )
+          .get(parentId).value || 0;
+      const statement = this.db.prepare(
+        'UPDATE tasks SET parent_id = ?, sort_order = ? WHERE id = ?',
+      );
+      ids.forEach((id) => {
+        statement.run(parentId, sortOrder, id);
+        sortOrder += 1;
+      });
+      if (parent.is_group !== 1 && movingTasks.some((task) => task.status === 'active')) {
+        this.db
+          .prepare(
+            `
+              WITH RECURSIVE ancestors(id, parent_id) AS (
+                SELECT id, parent_id FROM tasks WHERE id = ?
+                UNION ALL
+                SELECT parent.id, parent.parent_id
+                FROM tasks parent
+                JOIN ancestors child ON parent.id = child.parent_id
+              )
+              UPDATE tasks
+              SET status = 'active', completed_at = NULL
+              WHERE id IN (SELECT id FROM ancestors)
+            `,
+          )
+          .run(parentId);
+      }
     });
     move();
-    return { taskIds: ids, groupId };
+    return { taskIds: ids, parentId };
   }
 
   toggleTask(id) {

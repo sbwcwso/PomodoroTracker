@@ -1034,13 +1034,13 @@ function duplicateSiblingTitle(title, parentId, excludedTaskId = null) {
   );
 }
 
-function movingTaskTitleConflict(taskIds, targetGroupId) {
+function movingTaskTitleConflict(taskIds, targetParentId) {
   const movingIds = new Set(taskIds);
   const occupiedTitles = new Map();
   state.tasks.forEach((task) => {
     if (
       task.is_group !== 1 &&
-      String(task.parent_id) === String(targetGroupId) &&
+      String(task.parent_id) === String(targetParentId) &&
       !movingIds.has(task.id)
     ) {
       occupiedTitles.set(normalizedTaskTitle(task.title), task.title);
@@ -1096,7 +1096,7 @@ function renderTreeItem(task, depth, children, allChildren = children) {
           .join('')
       : '';
   return `<div class="tree-task-branch depth-${Math.min(depth, 6)} ${hasChildren ? 'has-children' : ''}">
-    <div class="root-item tree-task ${state.selectedRootId === task.id ? 'selected' : ''} ${selecting && isRoot ? 'selecting' : ''} ${state.selectedTaskIds.has(task.id) ? 'batch-selected' : ''} ${task.status === 'done' ? 'done' : ''}" data-task-id="${task.id}" ${isRoot ? `data-root-id="${task.id}" draggable="true"` : ''}>
+    <div class="root-item tree-task ${state.selectedRootId === task.id ? 'selected' : ''} ${selecting && isRoot ? 'selecting' : ''} ${state.selectedTaskIds.has(task.id) ? 'batch-selected' : ''} ${task.status === 'done' ? 'done' : ''}" data-task-id="${task.id}" data-drag-task-id="${task.id}" draggable="true">
     ${selecting && isRoot ? `<input class="root-selection-check" type="checkbox" data-select-task="${task.id}" aria-label="选择 ${escapeHtml(task.title)}" ${state.selectedTaskIds.has(task.id) ? 'checked' : ''}>` : ''}
     ${hasChildren ? `<button class="tree-collapse-button ${collapsed ? 'is-collapsed' : ''}" data-action="collapse-one" data-id="${task.id}" aria-label="${collapsed ? '展开子项' : '折叠子项'}" aria-expanded="${!collapsed}"><span class="task-group__chevron" aria-hidden="true"></span></button>` : '<span class="tree-collapse-spacer" aria-hidden="true"></span>'}
     <button class="root-select" data-tree-select="${task.id}">
@@ -2660,67 +2660,119 @@ elements.rootList.addEventListener('contextmenu', (event) => {
   }
   showContextMenu(event, Number(item.dataset.taskId));
 });
+function clearTaskDragTargets() {
+  elements.rootList.querySelectorAll('.drag-over, .drag-invalid').forEach((item) => {
+    item.classList.remove('drag-over', 'drag-invalid');
+  });
+}
+
+function taskDragDestination(event) {
+  const taskItem = event.target.closest('.root-item[data-task-id]');
+  if (taskItem) {
+    return {
+      element: taskItem,
+      isTask: true,
+      parentId: Number(taskItem.dataset.taskId),
+      label: taskPath(Number(taskItem.dataset.taskId)),
+    };
+  }
+  const group = event.target.closest('.task-group[data-group-id]');
+  if (!group) {
+    return null;
+  }
+  const groupId = Number(group.dataset.groupId);
+  return {
+    element: group,
+    isTask: false,
+    parentId: groupId,
+    label: state.taskGroups.find((item) => Number(item.id) === groupId)?.name || '目标分组',
+  };
+}
+
+function invalidTaskDropParent(parentId) {
+  const children = childMap();
+  return state.draggedTaskIds.some(
+    (taskId) => taskId === parentId || descendantIds(taskId, children).includes(parentId),
+  );
+}
+
 elements.rootList.addEventListener('dragstart', (event) => {
-  const item = event.target.closest('.root-item[data-root-id]');
+  const item = event.target.closest('.root-item[data-drag-task-id]');
   if (!item) {
     return;
   }
-  const taskId = Number(item.dataset.rootId);
+  const taskId = Number(item.dataset.dragTaskId);
   state.draggedTaskIds = state.selectedTaskIds.has(taskId) ? [...state.selectedTaskIds] : [taskId];
   item.classList.add('dragging');
   event.dataTransfer.effectAllowed = 'move';
   event.dataTransfer.setData('text/plain', state.draggedTaskIds.join(','));
 });
 elements.rootList.addEventListener('dragover', (event) => {
-  const group = event.target.closest('.task-group[data-group-id]');
-  if (!group || state.draggedTaskIds.length === 0) {
+  const destination = taskDragDestination(event);
+  if (!destination || state.draggedTaskIds.length === 0) {
     return;
   }
   event.preventDefault();
-  event.dataTransfer.dropEffect = 'move';
-  elements.rootList.querySelectorAll('.task-group.drag-over').forEach((item) => {
-    if (item !== group) {
-      item.classList.remove('drag-over');
-    }
-  });
-  group.classList.add('drag-over');
+  const invalid = invalidTaskDropParent(destination.parentId);
+  event.dataTransfer.dropEffect = invalid ? 'none' : 'move';
+  clearTaskDragTargets();
+  destination.element.classList.add(invalid ? 'drag-invalid' : 'drag-over');
 });
 elements.rootList.addEventListener('dragleave', (event) => {
-  const group = event.target.closest('.task-group[data-group-id]');
-  if (group && !group.contains(event.relatedTarget)) {
-    group.classList.remove('drag-over');
+  const destination = taskDragDestination(event);
+  if (destination && !destination.element.contains(event.relatedTarget)) {
+    destination.element.classList.remove('drag-over', 'drag-invalid');
   }
 });
 elements.rootList.addEventListener('drop', async (event) => {
-  const group = event.target.closest('.task-group[data-group-id]');
-  if (!group || state.draggedTaskIds.length === 0) {
+  const destination = taskDragDestination(event);
+  if (!destination || state.draggedTaskIds.length === 0) {
     return;
   }
   event.preventDefault();
-  const targetGroupId = group.dataset.groupId;
-  if (state.draggedTaskIds.every((taskId) => groupIdForTask(taskId) === targetGroupId)) {
+  if (invalidTaskDropParent(destination.parentId)) {
+    clearTaskDragTargets();
+    await showActionDialog({
+      mode: 'notice',
+      eyebrow: '无法移动事项',
+      title: '不能移动到自身的层级中',
+      message: '目标位置是当前事项本身，或者位于它的子事项中。',
+      detail: '请选择其它事项作为新的父事项，或者拖到大分组空白处成为一级事项。',
+      confirmLabel: '知道了',
+    });
     state.draggedTaskIds = [];
-    group.classList.remove('drag-over');
     return;
   }
-  const conflictTitle = movingTaskTitleConflict(state.draggedTaskIds, targetGroupId);
+  if (
+    state.draggedTaskIds.every(
+      (taskId) => Number(taskById(taskId)?.parent_id) === destination.parentId,
+    )
+  ) {
+    state.draggedTaskIds = [];
+    clearTaskDragTargets();
+    return;
+  }
+  const conflictTitle = movingTaskTitleConflict(state.draggedTaskIds, destination.parentId);
   if (conflictTitle) {
-    const groupName =
-      state.taskGroups.find((item) => item.id === targetGroupId)?.name || '目标分组';
-    await showDuplicateNotice(`无法移动：“${groupName}”中已经有名为“${conflictTitle}”的事项。`);
+    await showDuplicateNotice(
+      `无法移动：“${destination.label}”下已经有名为“${conflictTitle}”的事项。`,
+    );
     state.draggedTaskIds = [];
-    group.classList.remove('drag-over');
+    clearTaskDragTargets();
     return;
   }
-  await window.pomodoro.moveTasksToGroup(state.draggedTaskIds, Number(targetGroupId));
+  await window.pomodoro.reparentTasks(state.draggedTaskIds, destination.parentId);
+  if (destination.isTask) {
+    state.collapsedTaskIds.delete(destination.parentId);
+  }
   state.selectedTaskIds.clear();
   state.draggedTaskIds = [];
   await refresh();
 });
 elements.rootList.addEventListener('dragend', () => {
   state.draggedTaskIds = [];
-  elements.rootList.querySelectorAll('.dragging, .drag-over').forEach((item) => {
-    item.classList.remove('dragging', 'drag-over');
+  elements.rootList.querySelectorAll('.dragging, .drag-over, .drag-invalid').forEach((item) => {
+    item.classList.remove('dragging', 'drag-over', 'drag-invalid');
   });
 });
 elements.contextMenu.addEventListener('click', async (event) => {

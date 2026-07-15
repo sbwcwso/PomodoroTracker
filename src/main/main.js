@@ -309,6 +309,9 @@ function registerHandlers() {
   ipcMain.handle('tasks:moveToGroup', (_event, taskIds, groupId) =>
     database.moveTasks(taskIds, groupId),
   );
+  ipcMain.handle('tasks:reparent', (_event, taskIds, parentId) =>
+    database.reparentTasks(taskIds, parentId),
+  );
   ipcMain.handle('tasks:toggle', (_event, id) => database.toggleTask(id));
   ipcMain.handle('tasks:delete', (_event, id) => database.deleteTask(id));
   ipcMain.handle('tasks:setTimerSettings', (_event, id, input) =>

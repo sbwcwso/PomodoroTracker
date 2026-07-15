@@ -226,6 +226,32 @@ test('moves active tasks independently from completed siblings', () => {
   database.close();
 });
 
+test('reparents nested tasks while preserving their subtree and hierarchy rules', () => {
+  const database = new AppDatabase(':memory:');
+  const firstParent = database.createTask({ title: 'First parent' });
+  const secondParent = database.createTask({ title: 'Second parent' });
+  const child = database.createTask({ title: 'Child', parentId: firstParent.id });
+  const grandchild = database.createTask({ title: 'Grandchild', parentId: child.id });
+
+  database.toggleTask(secondParent.id);
+  const result = database.reparentTasks([child.id], secondParent.id);
+  let tasks = database.listTasks();
+  assert.deepEqual(result, { taskIds: [child.id], parentId: secondParent.id });
+  assert.equal(tasks.find((task) => task.id === child.id).parent_id, secondParent.id);
+  assert.equal(tasks.find((task) => task.id === grandchild.id).parent_id, child.id);
+  assert.equal(tasks.find((task) => task.id === secondParent.id).status, 'active');
+
+  assert.throws(
+    () => database.reparentTasks([secondParent.id], grandchild.id),
+    /不能将事项移动到自身或其子事项中/,
+  );
+  const duplicate = database.createTask({ title: ' child ', parentId: firstParent.id });
+  assert.throws(() => database.reparentTasks([duplicate.id], secondParent.id), /目标位置中已存在/);
+  tasks = database.listTasks();
+  assert.equal(tasks.find((task) => task.id === duplicate.id).parent_id, firstParent.id);
+  database.close();
+});
+
 test('migrates UI groups into database hierarchy once', () => {
   const database = new AppDatabase(':memory:');
   const first = database.createTask({ title: 'CS' });
