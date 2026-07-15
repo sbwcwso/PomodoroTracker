@@ -43,7 +43,18 @@ const state = {
   timerCompleting: false,
   focusEndSoundUrl: 'assets/sounds/focus-end.mp3',
   breakEndSoundUrl: 'assets/sounds/break-end.mp3',
+  natureSoundsEnabled: false,
+  natureSoundsMasterVolume: 35,
+  natureSoundVolumes: {},
 };
+const NATURE_SOUND_LIBRARY = Object.freeze([
+  { id: 'heavy-rain', url: 'assets/sounds/nature/heavy-rain.ogg' },
+  { id: 'forest-rain', url: 'assets/sounds/nature/forest-rain.ogg' },
+  { id: 'stream', url: 'assets/sounds/nature/stream.ogg' },
+  { id: 'thunderstorm', url: 'assets/sounds/nature/thunderstorm.ogg' },
+  { id: 'wind', url: 'assets/sounds/nature/wind.ogg' },
+  { id: 'fireplace', url: 'assets/sounds/nature/fireplace.ogg' },
+]);
 const elements = {
   rootList: document.querySelector('#root-list'),
   addGroup: document.querySelector('#add-group'),
@@ -154,6 +165,10 @@ const elements = {
   breakDurations: document.querySelector('#break-durations'),
   weekStartDay: document.querySelector('#week-start-day'),
   timerPopupTopmost: document.querySelector('#timer-popup-topmost'),
+  natureSoundsEnabled: document.querySelector('#nature-sounds-enabled'),
+  natureSoundsMasterVolume: document.querySelector('#nature-sounds-master-volume'),
+  natureSoundsMasterVolumeValue: document.querySelector('#nature-sounds-master-volume-value'),
+  natureSoundItems: [...document.querySelectorAll('[data-nature-sound]')],
   databasePath: document.querySelector('#database-path'),
   chooseDatabasePath: document.querySelector('#choose-database-path'),
   activeTimer: document.querySelector('#active-timer'),
@@ -293,9 +308,56 @@ function showSettings(config) {
   elements.breakEndSound.value = config.breakEndSoundPath || '默认提示音';
   state.focusEndSoundUrl = config.focusEndSoundUrl || 'assets/sounds/focus-end.mp3';
   state.breakEndSoundUrl = config.breakEndSoundUrl || 'assets/sounds/break-end.mp3';
+  syncNatureSoundSettings(config);
   if (!elements.settingsDialog.open) {
     elements.settingsDialog.showModal();
   }
+}
+
+function syncNatureSoundSettings(config) {
+  state.natureSoundsEnabled = config.natureSoundsEnabled === true;
+  state.natureSoundsMasterVolume = Number(config.natureSoundsMasterVolume ?? 35);
+  state.natureSoundVolumes = { ...(config.natureSoundVolumes || {}) };
+  elements.natureSoundsEnabled.checked = state.natureSoundsEnabled;
+  elements.natureSoundsMasterVolume.value = String(state.natureSoundsMasterVolume);
+  elements.natureSoundsMasterVolumeValue.textContent = `${state.natureSoundsMasterVolume}%`;
+  elements.natureSoundItems.forEach((item) => {
+    const id = item.dataset.natureSound;
+    const toggle = item.querySelector('.nature-sound-toggle');
+    const slider = item.querySelector('.nature-sound-volume');
+    const output = item.querySelector('output');
+    const volume = Number(state.natureSoundVolumes[id] || 0);
+    if (!item.dataset.lastVolume) {
+      item.dataset.lastVolume = slider.value;
+    }
+    if (volume > 0) {
+      slider.value = String(volume);
+      item.dataset.lastVolume = String(volume);
+    }
+    toggle.checked = volume > 0;
+    slider.disabled = volume <= 0;
+    output.textContent = `${slider.value}%`;
+  });
+}
+
+function collectNatureSoundSettings() {
+  const volumes = {};
+  elements.natureSoundItems.forEach((item) => {
+    const id = item.dataset.natureSound;
+    const toggle = item.querySelector('.nature-sound-toggle');
+    const slider = item.querySelector('.nature-sound-volume');
+    volumes[id] = toggle.checked ? Number(slider.value) : 0;
+  });
+  return {
+    enabled: elements.natureSoundsEnabled.checked,
+    masterVolume: Number(elements.natureSoundsMasterVolume.value),
+    volumes,
+  };
+}
+
+async function saveNatureSoundSettings() {
+  const config = await window.pomodoro.setNatureSounds(collectNatureSoundSettings());
+  syncNatureSoundSettings(config);
 }
 
 function escapeHtml(value) {
@@ -1588,7 +1650,104 @@ function timerPopupState() {
 }
 
 const activeSoundPlayers = new Set();
+const natureSoundPlayers = new Map();
+const natureSoundFadeTokens = new WeakMap();
 let fallbackAudioContext = null;
+
+function natureSoundTargetVolume(id) {
+  const master = Math.min(100, Math.max(0, Number(state.natureSoundsMasterVolume || 0))) / 100;
+  const track = Math.min(100, Math.max(0, Number(state.natureSoundVolumes[id] || 0))) / 100;
+  return Math.min(1, master * track);
+}
+
+function fadeAudioVolume(audio, target, duration = 500, onFinished = null) {
+  const token = Symbol('nature-sound-fade');
+  const initial = audio.volume;
+  const startedAt = window.performance.now();
+  natureSoundFadeTokens.set(audio, token);
+  const step = (now) => {
+    if (natureSoundFadeTokens.get(audio) !== token) {
+      return;
+    }
+    const progress = Math.min(1, (now - startedAt) / duration);
+    audio.volume = initial + (target - initial) * progress;
+    if (progress < 1) {
+      window.requestAnimationFrame(step);
+      return;
+    }
+    onFinished?.();
+  };
+  window.requestAnimationFrame(step);
+}
+
+function disposeNatureSound(audio) {
+  audio.pause();
+  audio.removeAttribute('src');
+  audio.load();
+}
+
+function stopNatureSounds({ immediate = false } = {}) {
+  natureSoundPlayers.forEach((audio) => {
+    if (immediate) {
+      disposeNatureSound(audio);
+      return;
+    }
+    fadeAudioVolume(audio, 0, 450, () => disposeNatureSound(audio));
+  });
+  natureSoundPlayers.clear();
+}
+
+function syncNatureSoundPlayerVolumes() {
+  natureSoundPlayers.forEach((audio, id) => {
+    const target = natureSoundTargetVolume(id);
+    if (target > 0) {
+      fadeAudioVolume(audio, target, 180);
+      return;
+    }
+    natureSoundPlayers.delete(id);
+    fadeAudioVolume(audio, 0, 250, () => disposeNatureSound(audio));
+  });
+}
+
+function startNatureSounds() {
+  if (!state.running || state.timerMode !== 'focus' || !state.natureSoundsEnabled) {
+    stopNatureSounds();
+    return;
+  }
+  NATURE_SOUND_LIBRARY.forEach(({ id, url }) => {
+    const target = natureSoundTargetVolume(id);
+    const existing = natureSoundPlayers.get(id);
+    if (target <= 0) {
+      if (existing) {
+        natureSoundPlayers.delete(id);
+        fadeAudioVolume(existing, 0, 250, () => disposeNatureSound(existing));
+      }
+      return;
+    }
+    if (existing) {
+      fadeAudioVolume(existing, target, 180);
+      return;
+    }
+    const audio = new Audio(url);
+    natureSoundPlayers.set(id, audio);
+    audio.loop = true;
+    audio.preload = 'auto';
+    audio.volume = 0;
+    audio
+      .play()
+      .then(() => {
+        if (natureSoundPlayers.get(id) === audio) {
+          fadeAudioVolume(audio, target, 900);
+        }
+      })
+      .catch(() => {
+        if (natureSoundPlayers.get(id) === audio) {
+          natureSoundPlayers.delete(id);
+        }
+        disposeNatureSound(audio);
+      });
+  });
+}
 
 function playAudioFile(url) {
   return new Promise((resolve, reject) => {
@@ -1881,6 +2040,7 @@ async function completeTimer() {
   state.interval = null;
   state.endsAt = null;
   state.running = false;
+  stopNatureSounds();
   if (state.timerMode === 'focus') {
     if (elements.sessionNoteDialog.open && state.sessionNoteMode === 'draft') {
       state.focusDraftNote = elements.sessionNote.value.trim();
@@ -1956,6 +2116,7 @@ function startTimer() {
   window.pomodoro.showTimerPopup(timerPopupState());
   state.interval = setInterval(syncTimerClock, 500);
   syncTimerClock();
+  startNatureSounds();
 }
 
 async function startPomodoro(taskId) {
@@ -2013,6 +2174,7 @@ async function interruptTimer() {
   state.interval = null;
   state.endsAt = null;
   state.running = false;
+  stopNatureSounds();
   if (state.timerMode === 'focus' && !discardShortFocus && elapsedSeconds >= 30) {
     await window.pomodoro.recordSession({
       taskId: state.activeTaskId,
@@ -2820,6 +2982,38 @@ elements.weekStartDay.addEventListener('change', async () => {
 elements.timerPopupTopmost.addEventListener('change', async () => {
   showSettings(await window.pomodoro.setTimerPopupAlwaysOnTop(elements.timerPopupTopmost.checked));
 });
+elements.natureSoundsEnabled.addEventListener('change', async () => {
+  await saveNatureSoundSettings();
+});
+elements.natureSoundsMasterVolume.addEventListener('input', () => {
+  state.natureSoundsMasterVolume = Number(elements.natureSoundsMasterVolume.value);
+  elements.natureSoundsMasterVolumeValue.textContent = `${state.natureSoundsMasterVolume}%`;
+  syncNatureSoundPlayerVolumes();
+});
+elements.natureSoundsMasterVolume.addEventListener('change', saveNatureSoundSettings);
+elements.natureSoundItems.forEach((item) => {
+  const toggle = item.querySelector('.nature-sound-toggle');
+  const slider = item.querySelector('.nature-sound-volume');
+  const output = item.querySelector('output');
+  toggle.addEventListener('change', async () => {
+    slider.disabled = !toggle.checked;
+    if (toggle.checked) {
+      slider.value = item.dataset.lastVolume || slider.value || '35';
+    }
+    state.natureSoundVolumes[item.dataset.natureSound] = toggle.checked ? Number(slider.value) : 0;
+    if (state.running && state.timerMode === 'focus' && state.natureSoundsEnabled) {
+      startNatureSounds();
+    }
+    await saveNatureSoundSettings();
+  });
+  slider.addEventListener('input', () => {
+    item.dataset.lastVolume = slider.value;
+    output.textContent = `${slider.value}%`;
+    state.natureSoundVolumes[item.dataset.natureSound] = Number(slider.value);
+    syncNatureSoundPlayerVolumes();
+  });
+  slider.addEventListener('change', saveNatureSoundSettings);
+});
 elements.chooseDatabasePath.addEventListener('click', async () => {
   showSettings(await window.pomodoro.chooseDatabasePath());
   await refresh();
@@ -2853,6 +3047,12 @@ window.pomodoro.onSettingsChanged((config) => {
   elements.breakEndSound.value = config.breakEndSoundPath || '默认提示音';
   state.focusEndSoundUrl = config.focusEndSoundUrl || 'assets/sounds/focus-end.mp3';
   state.breakEndSoundUrl = config.breakEndSoundUrl || 'assets/sounds/break-end.mp3';
+  syncNatureSoundSettings(config);
+  if (state.running && state.timerMode === 'focus' && state.natureSoundsEnabled) {
+    startNatureSounds();
+  } else {
+    stopNatureSounds();
+  }
   if (!sameDurations(state.focusDurations, config.focusDurations)) {
     state.focusDurations = [...config.focusDurations];
     if (!state.focusDurations.includes(state.focusDuration)) {
@@ -2940,6 +3140,7 @@ window.pomodoro.getSettings().then((config) => {
   state.breakDurations = [...config.breakDurations];
   state.focusDuration = state.focusDurations.includes(25) ? 25 : state.focusDurations[0];
   state.breakDuration = state.breakDurations[0];
+  syncNatureSoundSettings(config);
   renderDurationButtons();
   renderTasks();
 });

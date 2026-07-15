@@ -52,6 +52,29 @@ test('persists custom sound paths', () => {
   fs.rmSync(directory, { recursive: true });
 });
 
+test('persists and normalizes nature sound settings', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'pomodoro-config-'));
+  const filePath = path.join(directory, 'config.json');
+  const store = new ConfigStore(filePath);
+  store.setNatureSounds({
+    enabled: true,
+    masterVolume: 140,
+    volumes: { 'heavy-rain': 62, stream: -5, wind: 24 },
+  });
+  const config = new ConfigStore(filePath).getAll();
+  assert.equal(config.natureSoundsEnabled, true);
+  assert.equal(config.natureSoundsMasterVolume, 100);
+  assert.deepEqual(config.natureSoundVolumes, {
+    'heavy-rain': 62,
+    'forest-rain': 0,
+    stream: 0,
+    thunderstorm: 0,
+    wind: 24,
+    fireplace: 0,
+  });
+  fs.rmSync(directory, { recursive: true });
+});
+
 test('limits zoom to supported range', () => {
   const filePath = path.join(os.tmpdir(), `pomodoro-${Date.now()}.json`);
   const store = new ConfigStore(filePath);

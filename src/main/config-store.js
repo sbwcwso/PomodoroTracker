@@ -2,6 +2,22 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const DEFAULT_TASK_GROUP = Object.freeze({ id: 'default', name: '默认分组', collapsed: false });
+const NATURE_SOUND_IDS = Object.freeze([
+  'heavy-rain',
+  'forest-rain',
+  'stream',
+  'thunderstorm',
+  'wind',
+  'fireplace',
+]);
+const DEFAULT_NATURE_SOUND_VOLUMES = Object.freeze({
+  'heavy-rain': 45,
+  'forest-rain': 0,
+  stream: 0,
+  thunderstorm: 0,
+  wind: 0,
+  fireplace: 0,
+});
 
 const DEFAULT_CONFIG = Object.freeze({
   language: 'zh-CN',
@@ -12,6 +28,9 @@ const DEFAULT_CONFIG = Object.freeze({
   databasePath: '',
   focusEndSoundPath: '',
   breakEndSoundPath: '',
+  natureSoundsEnabled: false,
+  natureSoundsMasterVolume: 35,
+  natureSoundVolumes: DEFAULT_NATURE_SOUND_VOLUMES,
   windowBounds: null,
   windowMaximized: false,
   timerPopupPosition: null,
@@ -83,6 +102,21 @@ function normalizeDurations(value, fallback) {
   return durations.length > 0 ? durations : [...fallback];
 }
 
+function normalizeVolume(value, fallback = 0) {
+  const volume = Number(value);
+  return Number.isFinite(volume) ? Math.min(100, Math.max(0, Math.round(volume))) : fallback;
+}
+
+function normalizeNatureSoundVolumes(value) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  return Object.fromEntries(
+    NATURE_SOUND_IDS.map((id) => [
+      id,
+      normalizeVolume(source[id], DEFAULT_NATURE_SOUND_VOLUMES[id]),
+    ]),
+  );
+}
+
 class ConfigStore {
   constructor(filePath) {
     this.filePath = filePath;
@@ -109,6 +143,9 @@ class ConfigStore {
           typeof parsed.focusEndSoundPath === 'string' ? parsed.focusEndSoundPath : '',
         breakEndSoundPath:
           typeof parsed.breakEndSoundPath === 'string' ? parsed.breakEndSoundPath : '',
+        natureSoundsEnabled: parsed.natureSoundsEnabled === true,
+        natureSoundsMasterVolume: normalizeVolume(parsed.natureSoundsMasterVolume, 35),
+        natureSoundVolumes: normalizeNatureSoundVolumes(parsed.natureSoundVolumes),
         windowBounds: normalizeWindowBounds(parsed.windowBounds),
         windowMaximized: parsed.windowMaximized === true,
         timerPopupPosition: normalizeWindowPosition(parsed.timerPopupPosition),
@@ -159,6 +196,14 @@ class ConfigStore {
   setSoundPath(kind, value) {
     const key = kind === 'breakEnd' ? 'breakEndSoundPath' : 'focusEndSoundPath';
     this.config[key] = value ? path.resolve(String(value)) : '';
+    this.save();
+    return this.getAll();
+  }
+
+  setNatureSounds({ enabled, masterVolume, volumes }) {
+    this.config.natureSoundsEnabled = enabled === true;
+    this.config.natureSoundsMasterVolume = normalizeVolume(masterVolume, 35);
+    this.config.natureSoundVolumes = normalizeNatureSoundVolumes(volumes);
     this.save();
     return this.getAll();
   }

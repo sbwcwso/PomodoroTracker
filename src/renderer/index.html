@@ -534,6 +534,77 @@
           <input id="timer-popup-topmost" type="checkbox" checked />
           <span>弹出的计时窗口置顶显示</span>
         </label>
+        <section class="nature-sound-settings" aria-labelledby="nature-sound-heading">
+          <div class="nature-sound-settings__header">
+            <div>
+              <strong id="nature-sound-heading">专注自然声</strong>
+              <small>仅在专注计时期间循环播放，休息和结束时自动淡出</small>
+            </div>
+            <label class="nature-sound-switch" for="nature-sounds-enabled">
+              <input id="nature-sounds-enabled" type="checkbox" />
+              <span>启用</span>
+            </label>
+          </div>
+          <label class="nature-master-volume" for="nature-sounds-master-volume">
+            <span>总音量</span>
+            <input
+              id="nature-sounds-master-volume"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value="35"
+            />
+            <output id="nature-sounds-master-volume-value" for="nature-sounds-master-volume"
+              >35%</output
+            >
+          </label>
+          <div class="nature-sound-grid">
+            <label class="nature-sound-item" data-nature-sound="heavy-rain">
+              <span class="nature-sound-item__icon" aria-hidden="true">☔</span>
+              <span class="nature-sound-item__name">大雨</span>
+              <input class="nature-sound-toggle" type="checkbox" />
+              <input class="nature-sound-volume" type="range" min="0" max="100" value="45" />
+              <output>45%</output>
+            </label>
+            <label class="nature-sound-item" data-nature-sound="forest-rain">
+              <span class="nature-sound-item__icon" aria-hidden="true">🌲</span>
+              <span class="nature-sound-item__name">森林雨</span>
+              <input class="nature-sound-toggle" type="checkbox" />
+              <input class="nature-sound-volume" type="range" min="0" max="100" value="40" />
+              <output>40%</output>
+            </label>
+            <label class="nature-sound-item" data-nature-sound="stream">
+              <span class="nature-sound-item__icon" aria-hidden="true">〰</span>
+              <span class="nature-sound-item__name">溪流</span>
+              <input class="nature-sound-toggle" type="checkbox" />
+              <input class="nature-sound-volume" type="range" min="0" max="100" value="38" />
+              <output>38%</output>
+            </label>
+            <label class="nature-sound-item" data-nature-sound="thunderstorm">
+              <span class="nature-sound-item__icon" aria-hidden="true">⚡</span>
+              <span class="nature-sound-item__name">雷雨</span>
+              <input class="nature-sound-toggle" type="checkbox" />
+              <input class="nature-sound-volume" type="range" min="0" max="100" value="30" />
+              <output>30%</output>
+            </label>
+            <label class="nature-sound-item" data-nature-sound="wind">
+              <span class="nature-sound-item__icon" aria-hidden="true">⌁</span>
+              <span class="nature-sound-item__name">风声</span>
+              <input class="nature-sound-toggle" type="checkbox" />
+              <input class="nature-sound-volume" type="range" min="0" max="100" value="32" />
+              <output>32%</output>
+            </label>
+            <label class="nature-sound-item" data-nature-sound="fireplace">
+              <span class="nature-sound-item__icon" aria-hidden="true">♨</span>
+              <span class="nature-sound-item__name">壁炉</span>
+              <input class="nature-sound-toggle" type="checkbox" />
+              <input class="nature-sound-volume" type="range" min="0" max="100" value="35" />
+              <output>35%</output>
+            </label>
+          </div>
+          <p class="nature-sound-settings__hint">可以同时开启多种声音，组合出自己的环境声。</p>
+        </section>
         <label for="database-path">数据库文件</label>
         <div class="path-setting">
           <input id="database-path" readonly />

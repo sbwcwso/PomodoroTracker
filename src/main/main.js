@@ -354,6 +354,14 @@ function registerHandlers() {
     });
     return config;
   });
+  ipcMain.handle('settings:setNatureSounds', (_event, value) => {
+    configStore.setNatureSounds(value);
+    const config = publicConfig();
+    BrowserWindow.getAllWindows().forEach((window) => {
+      window.webContents.send('settings:changed', config);
+    });
+    return config;
+  });
   ipcMain.handle('settings:setWeekStartDay', (_event, value) => {
     const config = configStore.setWeekStartDay(value);
     BrowserWindow.getAllWindows().forEach((window) => {

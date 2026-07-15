@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('pomodoro', {
   setDurations: (value) => ipcRenderer.invoke('settings:setDurations', value),
   setTimerPopupAlwaysOnTop: (value) =>
     ipcRenderer.invoke('settings:setTimerPopupAlwaysOnTop', value),
+  setNatureSounds: (value) => ipcRenderer.invoke('settings:setNatureSounds', value),
   setWeekStartDay: (value) => ipcRenderer.invoke('settings:setWeekStartDay', value),
   setTaskGrouping: (value) => ipcRenderer.invoke('settings:setTaskGrouping', value),
   chooseDatabasePath: () => ipcRenderer.invoke('settings:chooseDatabasePath'),
