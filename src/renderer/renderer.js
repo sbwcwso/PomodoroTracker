@@ -46,6 +46,7 @@ const state = {
   natureSoundsEnabled: false,
   natureSoundsMasterVolume: 35,
   natureSoundVolumes: {},
+  settingsTab: 'general',
 };
 const NATURE_SOUND_LIBRARY = Object.freeze([
   { id: 'heavy-rain' },
@@ -159,6 +160,8 @@ const elements = {
   markdownHelpPanel: document.querySelector('#markdown-help-panel'),
   settingsDialog: document.querySelector('#settings-dialog'),
   settingsForm: document.querySelector('#settings-dialog form'),
+  settingsTabs: [...document.querySelectorAll('[data-settings-tab]')],
+  settingsPanels: [...document.querySelectorAll('[data-settings-panel]')],
   zoomRange: document.querySelector('#zoom-range'),
   zoomValue: document.querySelector('#zoom-value'),
   focusDurations: document.querySelector('#focus-durations'),
@@ -309,8 +312,34 @@ function showSettings(config) {
   state.focusEndSoundUrl = config.focusEndSoundUrl || 'assets/sounds/focus-end.mp3';
   state.breakEndSoundUrl = config.breakEndSoundUrl || 'assets/sounds/break-end.mp3';
   syncNatureSoundSettings(config);
+  activateSettingsTab(state.settingsTab);
   if (!elements.settingsDialog.open) {
     elements.settingsDialog.showModal();
+  }
+}
+
+function activateSettingsTab(tabId, { focus = false } = {}) {
+  const nextTab = elements.settingsTabs.find((tab) => tab.dataset.settingsTab === tabId);
+  if (!nextTab) {
+    return;
+  }
+  state.settingsTab = tabId;
+  elements.settingsTabs.forEach((tab) => {
+    const active = tab === nextTab;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', String(active));
+    tab.tabIndex = active ? 0 : -1;
+  });
+  elements.settingsPanels.forEach((panel) => {
+    const active = panel.dataset.settingsPanel === tabId;
+    panel.classList.toggle('active', active);
+    panel.hidden = !active;
+    if (active) {
+      panel.scrollTop = 0;
+    }
+  });
+  if (focus) {
+    nextTab.focus();
   }
 }
 
@@ -3027,6 +3056,26 @@ elements.contextMenu.addEventListener('click', async (event) => {
     await window.pomodoro.deleteTask(id);
     await refresh();
   }
+});
+elements.settingsTabs.forEach((tab, index) => {
+  tab.addEventListener('click', () => activateSettingsTab(tab.dataset.settingsTab));
+  tab.addEventListener('keydown', (event) => {
+    let nextIndex = null;
+    if (event.key === 'ArrowRight') {
+      nextIndex = (index + 1) % elements.settingsTabs.length;
+    } else if (event.key === 'ArrowLeft') {
+      nextIndex = (index - 1 + elements.settingsTabs.length) % elements.settingsTabs.length;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = elements.settingsTabs.length - 1;
+    }
+    if (nextIndex === null) {
+      return;
+    }
+    event.preventDefault();
+    activateSettingsTab(elements.settingsTabs[nextIndex].dataset.settingsTab, { focus: true });
+  });
 });
 elements.zoomRange.addEventListener('input', async () => {
   const config = await window.pomodoro.setZoomFactor(Number(elements.zoomRange.value) / 100);

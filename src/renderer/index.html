@@ -505,129 +505,254 @@
       </form>
     </dialog>
     <dialog id="settings-dialog">
-      <form method="dialog">
-        <h2>设置</h2>
-        <label for="language-select">界面语言</label>
-        <select id="language-select" disabled>
-          <option value="zh-CN" selected>简体中文（默认）</option>
-        </select>
-        <label for="zoom-range">界面缩放</label>
-        <div class="zoom-setting">
-          <input id="zoom-range" type="range" min="50" max="200" step="10" value="100" />
-          <strong id="zoom-value">100%</strong>
+      <form class="settings-form" method="dialog">
+        <header class="settings-header">
+          <div>
+            <h2>设置</h2>
+            <p>按类别调整番茄钟的行为与数据选项</p>
+          </div>
+        </header>
+        <div class="settings-tabs" role="tablist" aria-label="设置类别">
+          <button
+            id="settings-tab-general"
+            class="active"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="settings-panel-general"
+            data-settings-tab="general"
+          >
+            常规
+          </button>
+          <button
+            id="settings-tab-timer"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="settings-panel-timer"
+            data-settings-tab="timer"
+          >
+            番茄钟
+          </button>
+          <button
+            id="settings-tab-sound"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="settings-panel-sound"
+            data-settings-tab="sound"
+          >
+            声音
+          </button>
+          <button
+            id="settings-tab-data"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="settings-panel-data"
+            data-settings-tab="data"
+          >
+            数据
+          </button>
         </div>
-        <label for="focus-durations">专注时长（分钟）</label>
-        <input id="focus-durations" inputmode="numeric" placeholder="25" />
-        <label for="break-durations">休息时长（分钟）</label>
-        <input id="break-durations" inputmode="numeric" placeholder="5" />
-        <label for="week-start-day">每周开始于</label>
-        <select id="week-start-day">
-          <option value="1" selected>星期一（默认）</option>
-          <option value="2">星期二</option>
-          <option value="3">星期三</option>
-          <option value="4">星期四</option>
-          <option value="5">星期五</option>
-          <option value="6">星期六</option>
-          <option value="0">星期日</option>
-        </select>
-        <label class="checkbox-setting" for="timer-popup-topmost">
-          <input id="timer-popup-topmost" type="checkbox" checked />
-          <span>弹出的计时窗口置顶显示</span>
-        </label>
-        <section class="nature-sound-settings" aria-labelledby="nature-sound-heading">
-          <div class="nature-sound-settings__header">
-            <div>
-              <strong id="nature-sound-heading">专注自然声</strong>
-              <small>仅在专注计时期间循环播放，休息和结束时自动淡出</small>
+        <div class="settings-panels">
+          <section
+            id="settings-panel-general"
+            class="settings-panel active"
+            role="tabpanel"
+            aria-labelledby="settings-tab-general"
+            data-settings-panel="general"
+          >
+            <div class="settings-panel-heading">
+              <h3>界面与显示</h3>
+              <p>调整软件的语言和整体显示比例。</p>
             </div>
-            <label class="nature-sound-switch" for="nature-sounds-enabled">
-              <input id="nature-sounds-enabled" type="checkbox" />
-              <span>启用</span>
+            <label for="language-select">界面语言</label>
+            <select id="language-select" disabled>
+              <option value="zh-CN" selected>简体中文（默认）</option>
+            </select>
+            <label for="zoom-range">界面缩放</label>
+            <div class="zoom-setting">
+              <input id="zoom-range" type="range" min="50" max="200" step="10" value="100" />
+              <strong id="zoom-value">100%</strong>
+            </div>
+            <p class="settings-hint">快捷键：Ctrl + + 放大，Ctrl + - 缩小，Ctrl + 0 重置。</p>
+          </section>
+          <section
+            id="settings-panel-timer"
+            class="settings-panel"
+            role="tabpanel"
+            aria-labelledby="settings-tab-timer"
+            data-settings-panel="timer"
+            hidden
+          >
+            <div class="settings-panel-heading">
+              <h3>番茄钟行为</h3>
+              <p>设置默认时长以及计时小窗的显示方式。</p>
+            </div>
+            <div class="settings-field-grid">
+              <div>
+                <label for="focus-durations">专注时长（分钟）</label>
+                <input id="focus-durations" inputmode="numeric" placeholder="25" />
+              </div>
+              <div>
+                <label for="break-durations">休息时长（分钟）</label>
+                <input id="break-durations" inputmode="numeric" placeholder="5" />
+              </div>
+            </div>
+            <label class="checkbox-setting settings-checkbox-card" for="timer-popup-topmost">
+              <input id="timer-popup-topmost" type="checkbox" checked />
+              <span>
+                <strong>计时小窗置顶</strong>
+                <small>弹出的计时窗口保持在其它窗口上方。</small>
+              </span>
             </label>
-          </div>
-          <label class="nature-master-volume" for="nature-sounds-master-volume">
-            <span>总音量</span>
-            <input
-              id="nature-sounds-master-volume"
-              type="range"
-              min="0"
-              max="100"
-              step="1"
-              value="35"
-            />
-            <output id="nature-sounds-master-volume-value" for="nature-sounds-master-volume"
-              >35%</output
-            >
-          </label>
-          <div class="nature-sound-grid">
-            <label class="nature-sound-item" data-nature-sound="heavy-rain">
-              <span class="nature-sound-item__icon" aria-hidden="true">☔</span>
-              <span class="nature-sound-item__name">大雨</span>
-              <input class="nature-sound-toggle" type="checkbox" />
-              <input class="nature-sound-volume" type="range" min="0" max="100" value="45" />
-              <output>45%</output>
-            </label>
-            <label class="nature-sound-item" data-nature-sound="forest-rain">
-              <span class="nature-sound-item__icon" aria-hidden="true">🌲</span>
-              <span class="nature-sound-item__name">森林雨</span>
-              <input class="nature-sound-toggle" type="checkbox" />
-              <input class="nature-sound-volume" type="range" min="0" max="100" value="40" />
-              <output>40%</output>
-            </label>
-            <label class="nature-sound-item" data-nature-sound="stream">
-              <span class="nature-sound-item__icon" aria-hidden="true">〰</span>
-              <span class="nature-sound-item__name">溪流</span>
-              <input class="nature-sound-toggle" type="checkbox" />
-              <input class="nature-sound-volume" type="range" min="0" max="100" value="38" />
-              <output>38%</output>
-            </label>
-            <label class="nature-sound-item" data-nature-sound="thunderstorm">
-              <span class="nature-sound-item__icon" aria-hidden="true">⚡</span>
-              <span class="nature-sound-item__name">雷雨</span>
-              <input class="nature-sound-toggle" type="checkbox" />
-              <input class="nature-sound-volume" type="range" min="0" max="100" value="30" />
-              <output>30%</output>
-            </label>
-            <label class="nature-sound-item" data-nature-sound="wind">
-              <span class="nature-sound-item__icon" aria-hidden="true">⌁</span>
-              <span class="nature-sound-item__name">风声</span>
-              <input class="nature-sound-toggle" type="checkbox" />
-              <input class="nature-sound-volume" type="range" min="0" max="100" value="32" />
-              <output>32%</output>
-            </label>
-            <label class="nature-sound-item" data-nature-sound="fireplace">
-              <span class="nature-sound-item__icon" aria-hidden="true">♨</span>
-              <span class="nature-sound-item__name">壁炉</span>
-              <input class="nature-sound-toggle" type="checkbox" />
-              <input class="nature-sound-volume" type="range" min="0" max="100" value="35" />
-              <output>35%</output>
-            </label>
-          </div>
-          <p class="nature-sound-settings__hint">可以同时开启多种声音，组合出自己的环境声。</p>
-        </section>
-        <label for="database-path">数据库文件</label>
-        <div class="path-setting">
-          <input id="database-path" readonly />
-          <button type="button" id="choose-database-path">选择...</button>
+          </section>
+          <section
+            id="settings-panel-sound"
+            class="settings-panel"
+            role="tabpanel"
+            aria-labelledby="settings-tab-sound"
+            data-settings-panel="sound"
+            hidden
+          >
+            <div class="settings-panel-heading">
+              <h3>声音</h3>
+              <p>组合专注时的自然声，并选择计时结束提示音。</p>
+            </div>
+            <section class="nature-sound-settings" aria-labelledby="nature-sound-heading">
+              <div class="nature-sound-settings__header">
+                <div>
+                  <strong id="nature-sound-heading">专注自然声</strong>
+                  <small>仅在专注计时期间循环播放，休息和结束时自动淡出</small>
+                </div>
+                <label class="nature-sound-switch" for="nature-sounds-enabled">
+                  <input id="nature-sounds-enabled" type="checkbox" />
+                  <span>启用</span>
+                </label>
+              </div>
+              <label class="nature-master-volume" for="nature-sounds-master-volume">
+                <span>总音量</span>
+                <input
+                  id="nature-sounds-master-volume"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value="35"
+                />
+                <output id="nature-sounds-master-volume-value" for="nature-sounds-master-volume"
+                  >35%</output
+                >
+              </label>
+              <div class="nature-sound-grid">
+                <label class="nature-sound-item" data-nature-sound="heavy-rain">
+                  <span class="nature-sound-item__icon" aria-hidden="true">☔</span>
+                  <span class="nature-sound-item__name">大雨</span>
+                  <input class="nature-sound-toggle" type="checkbox" />
+                  <input class="nature-sound-volume" type="range" min="0" max="100" value="45" />
+                  <output>45%</output>
+                </label>
+                <label class="nature-sound-item" data-nature-sound="forest-rain">
+                  <span class="nature-sound-item__icon" aria-hidden="true">🌲</span>
+                  <span class="nature-sound-item__name">森林雨</span>
+                  <input class="nature-sound-toggle" type="checkbox" />
+                  <input class="nature-sound-volume" type="range" min="0" max="100" value="40" />
+                  <output>40%</output>
+                </label>
+                <label class="nature-sound-item" data-nature-sound="stream">
+                  <span class="nature-sound-item__icon" aria-hidden="true">〰</span>
+                  <span class="nature-sound-item__name">溪流</span>
+                  <input class="nature-sound-toggle" type="checkbox" />
+                  <input class="nature-sound-volume" type="range" min="0" max="100" value="38" />
+                  <output>38%</output>
+                </label>
+                <label class="nature-sound-item" data-nature-sound="thunderstorm">
+                  <span class="nature-sound-item__icon" aria-hidden="true">⚡</span>
+                  <span class="nature-sound-item__name">雷雨</span>
+                  <input class="nature-sound-toggle" type="checkbox" />
+                  <input class="nature-sound-volume" type="range" min="0" max="100" value="30" />
+                  <output>30%</output>
+                </label>
+                <label class="nature-sound-item" data-nature-sound="wind">
+                  <span class="nature-sound-item__icon" aria-hidden="true">⌁</span>
+                  <span class="nature-sound-item__name">风声</span>
+                  <input class="nature-sound-toggle" type="checkbox" />
+                  <input class="nature-sound-volume" type="range" min="0" max="100" value="32" />
+                  <output>32%</output>
+                </label>
+                <label class="nature-sound-item" data-nature-sound="fireplace">
+                  <span class="nature-sound-item__icon" aria-hidden="true">♨</span>
+                  <span class="nature-sound-item__name">壁炉</span>
+                  <input class="nature-sound-toggle" type="checkbox" />
+                  <input class="nature-sound-volume" type="range" min="0" max="100" value="35" />
+                  <output>35%</output>
+                </label>
+              </div>
+              <p class="nature-sound-settings__hint">可以同时开启多种声音，组合出自己的环境声。</p>
+            </section>
+            <div class="settings-sound-files">
+              <div>
+                <label for="focus-end-sound">专注结束提示音</label>
+                <div class="path-setting">
+                  <input id="focus-end-sound" readonly />
+                  <button type="button" data-sound-action="choose" data-sound-kind="focusEnd">
+                    选择...
+                  </button>
+                  <button type="button" data-sound-action="clear" data-sound-kind="focusEnd">
+                    默认
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label for="break-end-sound">休息结束提示音</label>
+                <div class="path-setting">
+                  <input id="break-end-sound" readonly />
+                  <button type="button" data-sound-action="choose" data-sound-kind="breakEnd">
+                    选择...
+                  </button>
+                  <button type="button" data-sound-action="clear" data-sound-kind="breakEnd">
+                    默认
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section
+            id="settings-panel-data"
+            class="settings-panel"
+            role="tabpanel"
+            aria-labelledby="settings-tab-data"
+            data-settings-panel="data"
+            hidden
+          >
+            <div class="settings-panel-heading">
+              <h3>数据与统计</h3>
+              <p>设置看板中的每周划分方式，以及本地数据库位置。</p>
+            </div>
+            <label for="week-start-day">每周开始于</label>
+            <select id="week-start-day">
+              <option value="1" selected>星期一（默认）</option>
+              <option value="2">星期二</option>
+              <option value="3">星期三</option>
+              <option value="4">星期四</option>
+              <option value="5">星期五</option>
+              <option value="6">星期六</option>
+              <option value="0">星期日</option>
+            </select>
+            <label for="database-path">数据库文件</label>
+            <div class="path-setting">
+              <input id="database-path" readonly />
+              <button type="button" id="choose-database-path">选择已有文件...</button>
+            </div>
+            <p class="settings-data-note">
+              数据库包含事项结构、专注历史和事项记录。更换前请确认目标文件无误。
+            </p>
+          </section>
         </div>
-        <label for="focus-end-sound">专注结束提示音</label>
-        <div class="path-setting">
-          <input id="focus-end-sound" readonly />
-          <button type="button" data-sound-action="choose" data-sound-kind="focusEnd">
-            选择...
-          </button>
-          <button type="button" data-sound-action="clear" data-sound-kind="focusEnd">默认</button>
+        <div class="dialog-actions settings-actions">
+          <button class="primary" type="submit">完成</button>
         </div>
-        <label for="break-end-sound">休息结束提示音</label>
-        <div class="path-setting">
-          <input id="break-end-sound" readonly />
-          <button type="button" data-sound-action="choose" data-sound-kind="breakEnd">
-            选择...
-          </button>
-          <button type="button" data-sound-action="clear" data-sound-kind="breakEnd">默认</button>
-        </div>
-        <p class="settings-hint">快捷键：Ctrl + + 放大，Ctrl + - 缩小，Ctrl + 0 重置。</p>
-        <div class="dialog-actions"><button class="primary" type="submit">完成</button></div>
       </form>
     </dialog>
     <dialog id="about-dialog">
