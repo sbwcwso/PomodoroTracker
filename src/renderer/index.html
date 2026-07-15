@@ -340,6 +340,16 @@
             <label><input id="history-record-search-case" type="checkbox" /> 区分大小写</label>
             <span id="history-record-search-summary"></span>
           </div>
+          <div class="record-search-range history-search-range">
+            <span>时间范围</span>
+            <label
+              >从 <input id="history-record-search-start" type="date" aria-label="历史搜索开始日期"
+            /></label>
+            <label
+              >至 <input id="history-record-search-end" type="date" aria-label="历史搜索结束日期"
+            /></label>
+            <button id="clear-history-record-search-range" type="button" hidden>全部时间</button>
+          </div>
           <div id="history-record-search-error" class="record-search-error" hidden></div>
         </div>
         <div id="history-record-search-empty" class="history-search-empty" hidden>
@@ -381,6 +391,16 @@
           <label><input id="record-search-regex" type="checkbox" /> 使用正则表达式</label>
           <label><input id="record-search-case" type="checkbox" /> 区分大小写</label>
           <span id="record-search-summary"></span>
+        </div>
+        <div class="record-search-range">
+          <span>时间范围</span>
+          <label
+            >从 <input id="record-search-start" type="date" aria-label="全局搜索开始日期"
+          /></label>
+          <label
+            >至 <input id="record-search-end" type="date" aria-label="全局搜索结束日期"
+          /></label>
+          <button id="clear-record-search-range" type="button" hidden>全部时间</button>
         </div>
         <p class="record-search-hint">正则示例：项目|阅读　算法.*练习　\bAPI\b</p>
         <div id="record-search-error" class="record-search-error" hidden></div>

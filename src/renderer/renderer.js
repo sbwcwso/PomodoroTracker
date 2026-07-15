@@ -102,19 +102,25 @@ const elements = {
   historyRecordSearchInput: document.querySelector('#history-record-search-input'),
   historyRecordSearchRegex: document.querySelector('#history-record-search-regex'),
   historyRecordSearchCase: document.querySelector('#history-record-search-case'),
+  historyRecordSearchStart: document.querySelector('#history-record-search-start'),
+  historyRecordSearchEnd: document.querySelector('#history-record-search-end'),
   historyRecordSearchSummary: document.querySelector('#history-record-search-summary'),
   historyRecordSearchError: document.querySelector('#history-record-search-error'),
   historyRecordSearchEmpty: document.querySelector('#history-record-search-empty'),
   clearHistoryRecordSearch: document.querySelector('#clear-history-record-search'),
+  clearHistoryRecordSearchRange: document.querySelector('#clear-history-record-search-range'),
   searchRecords: document.querySelector('#search-records'),
   recordSearchDialog: document.querySelector('#record-search-dialog'),
   closeRecordSearch: document.querySelector('#close-record-search'),
   recordSearchInput: document.querySelector('#record-search-input'),
   recordSearchRegex: document.querySelector('#record-search-regex'),
   recordSearchCase: document.querySelector('#record-search-case'),
+  recordSearchStart: document.querySelector('#record-search-start'),
+  recordSearchEnd: document.querySelector('#record-search-end'),
   recordSearchSummary: document.querySelector('#record-search-summary'),
   recordSearchError: document.querySelector('#record-search-error'),
   recordSearchResults: document.querySelector('#record-search-results'),
+  clearRecordSearchRange: document.querySelector('#clear-record-search-range'),
   interruptConfirmDialog: document.querySelector('#interrupt-confirm-dialog'),
   interruptConfirmTitle: document.querySelector('#interrupt-confirm-title'),
   interruptConfirmMessage: document.querySelector('#interrupt-confirm-message'),
@@ -1335,12 +1341,15 @@ async function openTaskHistory(taskId, options = {}) {
   state.historySessions = new Map(sessions.map((session) => [session.id, session]));
   state.historyOpenedFromSearch = options.fromSearch === true;
   elements.historyRecordSearchInput.value = '';
+  elements.historyRecordSearchStart.value = '';
+  elements.historyRecordSearchEnd.value = '';
   elements.historyRecordSearchSummary.textContent = '';
   elements.historyRecordSearchError.textContent = '';
   elements.historyRecordSearchError.hidden = true;
   elements.historyRecordSearchEmpty.hidden = true;
   elements.taskHistoryContent.hidden = false;
   elements.clearHistoryRecordSearch.hidden = true;
+  elements.clearHistoryRecordSearchRange.hidden = true;
   elements.historyBackToSearch.hidden = !state.historyOpenedFromSearch;
   elements.taskHistoryTitle.textContent = taskPath(taskId);
   if (sessions.length === 0) {
@@ -1422,7 +1431,19 @@ async function openTaskHistory(taskId, options = {}) {
   }
 }
 
+function readSearchDateRange(startInput, endInput) {
+  const startDate = startInput.value;
+  const endDate = endInput.value;
+  if (startDate && endDate && startDate > endDate) {
+    throw new Error('开始日期不能晚于结束日期');
+  }
+  return { startDate, endDate };
+}
+
 function historyNoteMatcher(query) {
+  if (!query) {
+    return () => true;
+  }
   if (elements.historyRecordSearchRegex.checked) {
     let expression;
     try {
@@ -1461,8 +1482,15 @@ function applyHistoryRecordSearch() {
   elements.historyRecordSearchError.textContent = '';
   elements.historyRecordSearchError.hidden = true;
   elements.clearHistoryRecordSearch.hidden = !query;
+  elements.clearHistoryRecordSearchRange.hidden = !(
+    elements.historyRecordSearchStart.value || elements.historyRecordSearchEnd.value
+  );
 
-  if (!query) {
+  if (
+    !query &&
+    !elements.historyRecordSearchStart.value &&
+    !elements.historyRecordSearchEnd.value
+  ) {
     elements.historyRecordSearchSummary.textContent = '';
     elements.historyRecordSearchEmpty.hidden = true;
     elements.taskHistoryContent.hidden = false;
@@ -1471,7 +1499,12 @@ function applyHistoryRecordSearch() {
   }
 
   let matches;
+  let dateRange;
   try {
+    dateRange = readSearchDateRange(
+      elements.historyRecordSearchStart,
+      elements.historyRecordSearchEnd,
+    );
     matches = historyNoteMatcher(query);
   } catch (error) {
     elements.historyRecordSearchSummary.textContent = '';
@@ -1488,7 +1521,15 @@ function applyHistoryRecordSearch() {
     const matchingSessions = [];
     day.querySelectorAll('.history-entry').forEach((entry) => {
       const session = state.historySessions.get(Number(entry.dataset.historySessionId));
-      const matched = Boolean(session && matches(String(session.note || '')));
+      const sessionDate = session?.local_date || '';
+      const inDateRange = Boolean(
+        session &&
+        (!dateRange.startDate || sessionDate >= dateRange.startDate) &&
+        (!dateRange.endDate || sessionDate <= dateRange.endDate),
+      );
+      const matched = Boolean(
+        inDateRange && String(session.note || '').trim() && matches(String(session.note || '')),
+      );
       entry.hidden = !matched;
       if (matched) {
         matchingSessions.push(session);
@@ -1767,22 +1808,26 @@ let recordSearchRequest = 0;
 
 async function runRecordSearch() {
   const query = elements.recordSearchInput.value.trim();
+  const hasDateRange = Boolean(elements.recordSearchStart.value || elements.recordSearchEnd.value);
   window.clearTimeout(recordSearchTimer);
   elements.recordSearchError.hidden = true;
   elements.recordSearchError.textContent = '';
-  if (!query) {
+  elements.clearRecordSearchRange.hidden = !hasDateRange;
+  if (!query && !hasDateRange) {
     elements.recordSearchSummary.textContent = '';
     elements.recordSearchResults.innerHTML =
-      '<div class="record-search-placeholder">输入内容后开始搜索</div>';
+      '<div class="record-search-placeholder">输入内容或选择时间范围后开始搜索</div>';
     return;
   }
   const requestId = ++recordSearchRequest;
   elements.recordSearchSummary.textContent = '搜索中…';
   try {
+    const dateRange = readSearchDateRange(elements.recordSearchStart, elements.recordSearchEnd);
     const sessions = await window.pomodoro.searchSessionNotes({
       query,
       useRegex: elements.recordSearchRegex.checked,
       caseSensitive: elements.recordSearchCase.checked,
+      ...dateRange,
     });
     if (requestId !== recordSearchRequest) {
       return;
@@ -2141,10 +2186,17 @@ elements.historyRecordSearchInput.addEventListener('input', () => {
 });
 elements.historyRecordSearchRegex.addEventListener('change', applyHistoryRecordSearch);
 elements.historyRecordSearchCase.addEventListener('change', applyHistoryRecordSearch);
+elements.historyRecordSearchStart.addEventListener('change', applyHistoryRecordSearch);
+elements.historyRecordSearchEnd.addEventListener('change', applyHistoryRecordSearch);
 elements.clearHistoryRecordSearch.addEventListener('click', () => {
   elements.historyRecordSearchInput.value = '';
   applyHistoryRecordSearch();
   elements.historyRecordSearchInput.focus();
+});
+elements.clearHistoryRecordSearchRange.addEventListener('click', () => {
+  elements.historyRecordSearchStart.value = '';
+  elements.historyRecordSearchEnd.value = '';
+  applyHistoryRecordSearch();
 });
 elements.historyRecordSearchInput.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') {
@@ -2184,6 +2236,13 @@ elements.recordSearchInput.addEventListener('input', () => {
 });
 elements.recordSearchRegex.addEventListener('change', runRecordSearch);
 elements.recordSearchCase.addEventListener('change', runRecordSearch);
+elements.recordSearchStart.addEventListener('change', runRecordSearch);
+elements.recordSearchEnd.addEventListener('change', runRecordSearch);
+elements.clearRecordSearchRange.addEventListener('click', () => {
+  elements.recordSearchStart.value = '';
+  elements.recordSearchEnd.value = '';
+  runRecordSearch();
+});
 elements.recordSearchResults.addEventListener('click', async (event) => {
   const button = event.target.closest('button[data-open-search-session]');
   if (!button) {

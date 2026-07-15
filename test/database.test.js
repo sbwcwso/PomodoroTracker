@@ -50,6 +50,26 @@ test('creates hierarchical tasks and records a session', () => {
   );
   assert.equal(database.searchSessionNotes({ query: '课程笔记' }).length, 1);
   assert.equal(database.searchSessionNotes({ query: '课程.*练习题', useRegex: true }).length, 1);
+  const currentDate = new Date();
+  const currentLocalDate = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+  assert.equal(
+    database.searchSessionNotes({ query: '课程笔记', startDate: currentLocalDate }).length,
+    1,
+  );
+  assert.equal(database.searchSessionNotes({ query: '', startDate: currentLocalDate }).length, 1);
+  assert.equal(
+    database.searchSessionNotes({ query: '课程笔记', startDate: '2999-01-01' }).length,
+    0,
+  );
+  assert.throws(
+    () =>
+      database.searchSessionNotes({
+        query: '课程笔记',
+        startDate: '2026-12-31',
+        endDate: '2026-01-01',
+      }),
+    /开始日期不能晚于结束日期/,
+  );
   assert.throws(
     () => database.searchSessionNotes({ query: '[', useRegex: true }),
     /正则表达式无效/,

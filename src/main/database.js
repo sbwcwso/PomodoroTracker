@@ -432,13 +432,26 @@ class AppDatabase {
     return { sessionId };
   }
 
-  searchSessionNotes({ query, useRegex = false, caseSensitive = false } = {}) {
+  searchSessionNotes({
+    query,
+    useRegex = false,
+    caseSensitive = false,
+    startDate = '',
+    endDate = '',
+  } = {}) {
     const searchText = String(query || '').trim();
-    if (!searchText) {
+    const normalizedStartDate = /^\d{4}-\d{2}-\d{2}$/.test(startDate) ? startDate : null;
+    const normalizedEndDate = /^\d{4}-\d{2}-\d{2}$/.test(endDate) ? endDate : null;
+    if (!searchText && !normalizedStartDate && !normalizedEndDate) {
       return [];
     }
+    if (normalizedStartDate && normalizedEndDate && normalizedStartDate > normalizedEndDate) {
+      throw new Error('开始日期不能晚于结束日期');
+    }
     let matches;
-    if (useRegex) {
+    if (!searchText) {
+      matches = () => true;
+    } else if (useRegex) {
       let expression;
       try {
         expression = new RegExp(searchText, caseSensitive ? 'u' : 'iu');
@@ -459,10 +472,12 @@ class AppDatabase {
           FROM pomodoro_sessions s
           JOIN tasks t ON t.id = s.task_id
           WHERE length(trim(s.note)) > 0
+            AND (? IS NULL OR date(s.completed_at, 'localtime') >= ?)
+            AND (? IS NULL OR date(s.completed_at, 'localtime') <= ?)
           ORDER BY datetime(s.completed_at) DESC, s.id DESC
         `,
       )
-      .all()
+      .all(normalizedStartDate, normalizedStartDate, normalizedEndDate, normalizedEndDate)
       .filter((session) => matches(session.note))
       .slice(0, 300);
   }

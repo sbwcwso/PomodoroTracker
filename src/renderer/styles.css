@@ -1922,6 +1922,59 @@ dialog::backdrop {
   margin-left: auto;
   color: #88857c;
 }
+.record-search-range {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  margin: 6px 22px 2px;
+  color: #777970;
+  font-size: 11px;
+}
+.record-search-range > span {
+  color: #5f685c;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.record-search-range label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin: 0;
+  white-space: nowrap;
+}
+.record-search-range input {
+  width: 132px;
+  height: 30px;
+  padding: 4px 8px;
+  border: 1px solid #d2cec4;
+  border-radius: 8px;
+  outline: 0;
+  background: #fffdf8;
+  color: #52574f;
+  font: inherit;
+  color-scheme: light;
+}
+.record-search-range input:focus {
+  border-color: #879681;
+  box-shadow: 0 0 0 2px rgb(112 132 104 / 10%);
+}
+.record-search-range button {
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid rgb(111 132 106 / 25%);
+  border-radius: 8px;
+  background: #eff3eb;
+  color: #586954;
+  font-size: 10px;
+}
+.record-search-range button:hover {
+  border-color: rgb(111 132 106 / 42%);
+  background: #e6eee2;
+}
+.history-search-range {
+  grid-column: 1 / -1;
+  margin: 0;
+}
 .record-search-hint {
   margin: 5px 22px 8px;
   color: #99958b;
@@ -2520,6 +2573,9 @@ form select {
   }
   .history-search-options > span {
     margin-left: auto;
+  }
+  .record-search-range {
+    flex-wrap: wrap;
   }
   .history-day summary {
     grid-template-columns: 1fr auto;
