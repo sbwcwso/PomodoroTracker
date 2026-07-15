@@ -99,6 +99,13 @@ const elements = {
   taskHistoryTitle: document.querySelector('#task-history-title'),
   taskHistoryContent: document.querySelector('#task-history-content'),
   historyBackToSearch: document.querySelector('#history-back-to-search'),
+  historyRecordSearchInput: document.querySelector('#history-record-search-input'),
+  historyRecordSearchRegex: document.querySelector('#history-record-search-regex'),
+  historyRecordSearchCase: document.querySelector('#history-record-search-case'),
+  historyRecordSearchSummary: document.querySelector('#history-record-search-summary'),
+  historyRecordSearchError: document.querySelector('#history-record-search-error'),
+  historyRecordSearchEmpty: document.querySelector('#history-record-search-empty'),
+  clearHistoryRecordSearch: document.querySelector('#clear-history-record-search'),
   searchRecords: document.querySelector('#search-records'),
   recordSearchDialog: document.querySelector('#record-search-dialog'),
   closeRecordSearch: document.querySelector('#close-record-search'),
@@ -1327,6 +1334,13 @@ async function openTaskHistory(taskId, options = {}) {
   state.historyTaskId = taskId;
   state.historySessions = new Map(sessions.map((session) => [session.id, session]));
   state.historyOpenedFromSearch = options.fromSearch === true;
+  elements.historyRecordSearchInput.value = '';
+  elements.historyRecordSearchSummary.textContent = '';
+  elements.historyRecordSearchError.textContent = '';
+  elements.historyRecordSearchError.hidden = true;
+  elements.historyRecordSearchEmpty.hidden = true;
+  elements.taskHistoryContent.hidden = false;
+  elements.clearHistoryRecordSearch.hidden = true;
   elements.historyBackToSearch.hidden = !state.historyOpenedFromSearch;
   elements.taskHistoryTitle.textContent = taskPath(taskId);
   if (sessions.length === 0) {
@@ -1407,6 +1421,100 @@ async function openTaskHistory(taskId, options = {}) {
     });
   }
 }
+
+function historyNoteMatcher(query) {
+  if (elements.historyRecordSearchRegex.checked) {
+    let expression;
+    try {
+      expression = new RegExp(query, elements.historyRecordSearchCase.checked ? 'u' : 'iu');
+    } catch (error) {
+      throw new Error(`正则表达式无效：${error.message}`);
+    }
+    return (note) => expression.test(note);
+  }
+  const expected = elements.historyRecordSearchCase.checked
+    ? query
+    : query.toLocaleLowerCase('zh-CN');
+  return (note) => {
+    const value = elements.historyRecordSearchCase.checked ? note : note.toLocaleLowerCase('zh-CN');
+    return value.includes(expected);
+  };
+}
+
+function restoreHistoryRecordVisibility(days) {
+  days.forEach((day) => {
+    day.hidden = false;
+    day.classList.remove('is-filtered');
+    day.querySelectorAll('.history-entry').forEach((entry) => {
+      entry.hidden = false;
+    });
+    const summary = day.querySelector('.history-day__summary');
+    if (summary?.dataset.unfilteredText) {
+      summary.textContent = summary.dataset.unfilteredText;
+    }
+  });
+}
+
+function applyHistoryRecordSearch() {
+  const query = elements.historyRecordSearchInput.value.trim();
+  const days = [...elements.taskHistoryContent.querySelectorAll('.history-day')];
+  elements.historyRecordSearchError.textContent = '';
+  elements.historyRecordSearchError.hidden = true;
+  elements.clearHistoryRecordSearch.hidden = !query;
+
+  if (!query) {
+    elements.historyRecordSearchSummary.textContent = '';
+    elements.historyRecordSearchEmpty.hidden = true;
+    elements.taskHistoryContent.hidden = false;
+    restoreHistoryRecordVisibility(days);
+    return;
+  }
+
+  let matches;
+  try {
+    matches = historyNoteMatcher(query);
+  } catch (error) {
+    elements.historyRecordSearchSummary.textContent = '';
+    elements.historyRecordSearchError.textContent = error.message;
+    elements.historyRecordSearchError.hidden = false;
+    elements.historyRecordSearchEmpty.hidden = true;
+    elements.taskHistoryContent.hidden = false;
+    restoreHistoryRecordVisibility(days);
+    return;
+  }
+
+  let resultCount = 0;
+  days.forEach((day) => {
+    const matchingSessions = [];
+    day.querySelectorAll('.history-entry').forEach((entry) => {
+      const session = state.historySessions.get(Number(entry.dataset.historySessionId));
+      const matched = Boolean(session && matches(String(session.note || '')));
+      entry.hidden = !matched;
+      if (matched) {
+        matchingSessions.push(session);
+      }
+    });
+    const summary = day.querySelector('.history-day__summary');
+    if (summary) {
+      summary.dataset.unfilteredText ||= summary.textContent;
+      const matchingSeconds = matchingSessions.reduce(
+        (total, session) => total + session.duration_seconds,
+        0,
+      );
+      summary.textContent = `${matchingSessions.length} 条记录 · ${formatRecordedDuration(matchingSeconds)}`;
+    }
+    day.hidden = matchingSessions.length === 0;
+    day.classList.toggle('is-filtered', matchingSessions.length > 0);
+    if (matchingSessions.length > 0) {
+      day.open = true;
+      resultCount += matchingSessions.length;
+    }
+  });
+  elements.historyRecordSearchSummary.textContent = `${resultCount} 条结果`;
+  elements.historyRecordSearchEmpty.hidden = resultCount !== 0;
+  elements.taskHistoryContent.hidden = resultCount === 0;
+}
+
 function renderTimer() {
   elements.activeTimer.hidden = !state.running;
   elements.openTimerPopup.textContent = state.timerPopupOpen ? '关闭小窗' : '打开小窗';
@@ -1653,6 +1761,7 @@ function openFocusDraftDialog() {
   elements.sessionNote.focus();
 }
 
+let historyRecordSearchTimer = null;
 let recordSearchTimer = null;
 let recordSearchRequest = 0;
 
@@ -1980,6 +2089,9 @@ elements.sessionNoteForm.addEventListener('submit', async (event) => {
       if (noteElement) {
         noteElement.innerHTML = renderMarkdown(note);
       }
+      if (elements.historyRecordSearchInput.value.trim()) {
+        applyHistoryRecordSearch();
+      }
     }
   }
   if (state.sessionNoteMode === 'final') {
@@ -2020,6 +2132,29 @@ elements.taskHistoryContent.addEventListener('click', (event) => {
   const session = state.historySessions.get(sessionId);
   if (session) {
     openSessionNoteDialog(sessionId, session.task_id, session.note, true);
+  }
+});
+
+elements.historyRecordSearchInput.addEventListener('input', () => {
+  window.clearTimeout(historyRecordSearchTimer);
+  historyRecordSearchTimer = window.setTimeout(applyHistoryRecordSearch, 180);
+});
+elements.historyRecordSearchRegex.addEventListener('change', applyHistoryRecordSearch);
+elements.historyRecordSearchCase.addEventListener('change', applyHistoryRecordSearch);
+elements.clearHistoryRecordSearch.addEventListener('click', () => {
+  elements.historyRecordSearchInput.value = '';
+  applyHistoryRecordSearch();
+  elements.historyRecordSearchInput.focus();
+});
+elements.historyRecordSearchInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    applyHistoryRecordSearch();
+  }
+  if (event.key === 'Escape' && elements.historyRecordSearchInput.value) {
+    event.preventDefault();
+    elements.historyRecordSearchInput.value = '';
+    applyHistoryRecordSearch();
   }
 });
 

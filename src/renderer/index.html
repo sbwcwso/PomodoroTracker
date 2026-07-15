@@ -314,6 +314,37 @@
           </div>
           <button class="history-dialog__close" value="close" aria-label="关闭">×</button>
         </div>
+        <div class="history-search-panel">
+          <div class="history-search-box">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="10.5" cy="10.5" r="6.5" />
+              <path d="m15.5 15.5 5 5" />
+            </svg>
+            <input
+              id="history-record-search-input"
+              type="search"
+              placeholder="搜索当前事项的记录内容"
+              autocomplete="off"
+            />
+            <button
+              id="clear-history-record-search"
+              type="button"
+              aria-label="清空历史记录搜索"
+              hidden
+            >
+              ×
+            </button>
+          </div>
+          <div class="history-search-options">
+            <label><input id="history-record-search-regex" type="checkbox" /> 使用正则表达式</label>
+            <label><input id="history-record-search-case" type="checkbox" /> 区分大小写</label>
+            <span id="history-record-search-summary"></span>
+          </div>
+          <div id="history-record-search-error" class="record-search-error" hidden></div>
+        </div>
+        <div id="history-record-search-empty" class="history-search-empty" hidden>
+          当前事项的记录中没有符合条件的内容
+        </div>
         <div id="task-history-content" class="history-content"></div>
       </form>
     </dialog>

@@ -1726,6 +1726,110 @@ dialog::backdrop {
   background: rgb(255 255 255 / 68%);
   color: var(--ink);
 }
+.history-search-panel {
+  display: grid;
+  flex: none;
+  grid-template-columns: minmax(280px, 620px) minmax(260px, 1fr);
+  gap: 8px 18px;
+  align-items: center;
+  padding: 12px 26px;
+  border-bottom: 1px solid #e7e0d5;
+  background: rgb(253 251 246 / 92%);
+}
+.history-search-box {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 28px;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid #c8cfc3;
+  border-radius: 11px;
+  background: #fffdf8;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+.history-search-box:focus-within {
+  border-color: #81917b;
+  box-shadow: 0 0 0 3px rgb(112 132 104 / 11%);
+}
+.history-search-box svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: #687565;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+.history-search-box input {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+.history-search-box button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #7b786f;
+  font-size: 19px;
+  line-height: 1;
+}
+.history-search-box button[hidden] {
+  visibility: hidden;
+}
+.history-search-box button:hover {
+  background: #eff2eb;
+  color: #42533f;
+}
+.history-search-options {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  color: #686c64;
+  font-size: 11px;
+}
+.history-search-options label {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  margin: 0;
+  white-space: nowrap;
+}
+.history-search-options input {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  accent-color: var(--sage);
+}
+.history-search-options > span {
+  margin-left: auto;
+  color: #88857c;
+  white-space: nowrap;
+}
+.history-search-panel > .record-search-error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.history-search-empty {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  color: #8c8980;
+  font-size: 12px;
+}
+.history-search-empty[hidden] {
+  display: none;
+}
 .record-search-dialog {
   position: fixed;
   inset: 116px 18px 18px;
@@ -2409,6 +2513,13 @@ form select {
   }
   .dashboard-panel--allocation .donut-layout {
     grid-template-columns: 1fr;
+  }
+  .history-search-panel {
+    grid-template-columns: 1fr;
+    padding-inline: 20px;
+  }
+  .history-search-options > span {
+    margin-left: auto;
   }
   .history-day summary {
     grid-template-columns: 1fr auto;
