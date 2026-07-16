@@ -1,7 +1,16 @@
 {
   "name": "pomodoro-tracker",
   "version": "0.1.0",
-  "description": "支持分级事项的本地番茄钟记录工具",
+  "description": "A bilingual, local-first Pomodoro tracker with hierarchical tasks and focus analytics",
+  "author": "sbwcwso",
+  "homepage": "https://github.com/sbwcwso/PomodoroTracker#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sbwcwso/PomodoroTracker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sbwcwso/PomodoroTracker/issues"
+  },
   "main": "src/main/main.js",
   "type": "commonjs",
   "scripts": {
@@ -48,6 +57,7 @@
       "**/*.node"
     ],
     "win": {
+      "icon": "build/icon.ico",
       "target": "nsis"
     },
     "nsis": {
@@ -64,6 +74,7 @@
       "shortcutName": "番茄钟"
     },
     "linux": {
+      "icon": "build/icon.png",
       "target": "AppImage",
       "category": "Utility",
       "executableName": "pomodoro-tracker",

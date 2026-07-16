@@ -125,6 +125,7 @@ function createWindow() {
   const window = new BrowserWindow({
     width,
     height,
+    icon: path.join(__dirname, '../renderer/assets/app-icon.png'),
     minWidth: 880,
     minHeight: 620,
     backgroundColor: '#f5f1e8',
@@ -494,6 +495,7 @@ function registerHandlers() {
       new Notification({
         title: String(payload.title || text('Timer finished', '计时结束')),
         body: String(payload.body || ''),
+        icon: path.join(__dirname, '../renderer/assets/app-icon.png'),
         silent: true,
       }).show();
     }

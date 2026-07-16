@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="build/icon.png" alt="Pomodoro Tracker icon" width="128" />
+</p>
+
 # Pomodoro Tracker / 番茄事项
 
 [English](#english) · [简体中文](#简体中文)
@@ -30,6 +34,124 @@ GitHub Releases provide the following packages:
 
 The Windows installer supports English and Simplified Chinese and defaults to English. The
 application is currently unsigned, so Windows may show a SmartScreen warning.
+
+### User guide
+
+#### 1. Install and complete the first setup
+
+1. Download the package for your system from GitHub Releases.
+2. On Windows, run the x64 installer on most modern computers. Use x86 only for a 32-bit Windows
+   installation. Choose English or Simplified Chinese in the installer and select an installation
+   directory.
+3. On Linux, make the AppImage executable with `chmod +x Pomodoro*.AppImage`, then run it. If the
+   distribution does not support AppImage out of the box, install its FUSE compatibility package
+   or extract the image with `--appimage-extract`.
+4. Open **File → Settings**. Confirm the default focus and break duration, the first day of the
+   week, mini timer behavior, completion sounds, and database location.
+
+The interface language selected by the Windows installer is used on first launch. You can change
+it later under **Settings → General** without restarting the application.
+
+#### 2. Organize tasks
+
+- Use the group button in the task toolbar to create top-level groups such as Work, Study, or
+  Personal. A group organizes data and dashboards but cannot be timed directly.
+- Use the add icon on a group to create a top-level task. Use the add-child icon on any task to
+  create a nested task.
+- Double-click a task row to expand or collapse its children. The arrow remains available for the
+  same operation.
+- Use the pencil icon to rename a group or task. Sibling task names must be unique; group names
+  must also be unique.
+- Use the up/down controls or drag and drop to reorder and move tasks. A task carries its complete
+  subtree when moved.
+- Marking a parent complete also completes unfinished descendants. Reopening a child automatically
+  reopens its completed ancestors. Completed items move below active siblings and keep only the
+  completion and history actions visible.
+- The task-name search keeps the matching task, its parent path, and its descendants visible so
+  that the result remains understandable in context.
+
+#### 3. Start and control a Pomodoro
+
+1. Click either the tomato icon or its `25/5` duration label to select the task and start a focus
+   session.
+2. Use the timer-settings icon beside a task to override the global focus and break duration for
+   that task. The displayed `40/10`, for example, means 40 minutes of focus and a 10-minute break.
+3. Open the mini timer when you want a compact always-on-top display. Drag it from any empty area;
+   its position is restored the next time it opens. Double-click it to return to the main window.
+4. While timing, use **Quick note** to capture ideas. The draft is merged into the final session
+   note instead of opening a competing record.
+5. When focus finishes, the main window is activated, the completion sound plays, and a session
+   note editor opens. The completed session is already stored before the break begins.
+6. Interrupting focus after 30 seconds records elapsed time but does not increment the completed
+   Pomodoro count. Sessions shorter than 30 seconds are discarded immediately. Interrupting a
+   break does not remove the Pomodoro that was completed before it.
+
+A running Pomodoro is locked to its current task. Clicking another task shows an explanation
+instead of silently switching the active session.
+
+#### 4. Write session notes with Markdown
+
+The note editor is available during focus, after focus completes, and from focus history. It shows
+the session date, start/end time, and actual duration. Supported Markdown includes:
+
+- headings: `## Heading`
+- bold and italic: `**important**`, `*detail*`
+- lists: `- item` and `1. step`
+- quotes and inline code: `> summary`, `` `code` ``
+- links and strikethrough: `[label](https://example.com)`, `~~obsolete~~`
+
+Use the built-in Markdown help beside the editor for a compact reference. Notes are rendered in
+focus history but remain editable.
+
+#### 5. Review and search history
+
+- Click the history icon on any active or completed task to open its records. A parent task's
+  history includes every descendant.
+- Records are grouped by date and show start/end time, duration, completion state, and note in two
+  aligned columns.
+- Use the history search to limit results to the current task tree. Use the toolbar record-search
+  button to search all tasks.
+- Both searches support plain text, case sensitivity, regular expressions, and optional start/end
+  dates. Leaving both dates blank searches all time.
+- A result's jump button opens the corresponding top-level history view and scrolls directly to
+  that session; use the back button to return to the previous results.
+
+#### 6. Use the dashboard
+
+- **Day** shows task allocation and focus time in four-hour intervals.
+- **Week** uses the configured first day of the week and compares all seven days.
+- **Year** aggregates actual focus time by month.
+- Choose a date for any period or return to the current date with one click.
+- Change **Visible depth** to aggregate only top-level groups or reveal deeper task levels. Child
+  segments remain visually contained inside their parent segment.
+- Hover the chart or legend to highlight related data. Parent totals always include descendants.
+
+#### 7. Configure sound, display, and data
+
+- **General:** switch language and adjust interface scaling. Shortcuts are `Ctrl++`, `Ctrl+-`, and
+  `Ctrl+0`.
+- **Timer:** set default durations and whether the mini timer stays above other windows.
+- **Sound:** choose focus/break completion audio and mix rain, stream, wind, thunderstorm, or
+  fireplace ambience. Nature sounds play only during focus and fade out for breaks.
+- **Data:** configure the first day of the week or select an existing SQLite database. Selecting an
+  existing file opens that database; it does not overwrite it.
+
+For backups, close the app and copy `pomodoro.sqlite3` to a safe location. To move between
+computers, copy that file and select it from **Settings → Data**. Keep a backup before replacing or
+editing a database manually.
+
+#### Troubleshooting
+
+- **Electron did not install:** delete only `node_modules/electron`, then run `npm install` again.
+  Network or TLS errors during this step mean the Electron runtime download was interrupted.
+- **Native module build failure:** install Visual Studio Build Tools with the Desktop development
+  with C++ workload, or use a Node/Electron combination with a compatible prebuilt binary.
+- **No sound on Linux:** verify that Chromium/Electron is visible in the desktop audio mixer and
+  that PipeWire or PulseAudio has an active output device.
+- **AppImage does not start:** install the distribution's FUSE compatibility package, or run the
+  AppImage with `--appimage-extract` and start `squashfs-root/AppRun`.
+- **Windows SmartScreen warning:** the package is not code-signed yet. Verify that it came from this
+  repository's GitHub Release before choosing to run it.
 
 ### Run from source
 
@@ -119,6 +241,84 @@ GitHub Releases 提供以下安装文件：
 - Linux x64 AppImage
 
 Windows 安装程序支持英文和简体中文，并默认选择英文。应用目前没有代码签名，因此 Windows 可能显示 SmartScreen 提示。
+
+### 使用说明
+
+#### 1. 安装与首次设置
+
+1. 从 GitHub Releases 下载与系统对应的安装包。
+2. 绝大多数现代 Windows 电脑应使用 x64 安装包；只有 32 位 Windows 才使用 x86。运行安装程序后选择英文或简体中文，并指定安装目录。
+3. Linux 用户先执行 `chmod +x Pomodoro*.AppImage`，然后运行 AppImage。如果发行版默认不支持 AppImage，请安装 FUSE 兼容包，或使用 `--appimage-extract` 解压运行。
+4. 打开 **文件 → 设置**，确认默认专注/休息时长、每周起始日、计时小窗、结束提示音和数据库位置。
+
+Windows 安装器中选择的语言会用于软件首次启动，之后可在 **设置 → 常规** 中即时切换，无需重启。
+
+#### 2. 组织事项
+
+- 使用事项工具栏中的分组按钮创建工作、学习或生活等顶层分组。分组会参与数据库和看板统计，但不能单独计时。
+- 点击分组上的添加图标创建一级事项；点击任意事项上的添加子项图标，可以继续建立任意深度的层级。
+- 双击事项行可以展开或折叠子项，原有的折叠箭头仍然可用。
+- 使用铅笔图标重命名分组或事项。同一分组中的一级事项不能重名，同一个父事项的直接子项也不能重名。
+- 使用上下移动按钮或拖放调整顺序和层级；移动父事项时，其完整子树会一起移动。
+- 将父事项标记完成时，会同步完成其下未完成的子项；重新打开子项时，会自动把已经完成的父级恢复为未完成。已完成事项移动到同级底部，只保留完成状态和专注历史按钮。
+- 事项名称搜索会同时保留命中事项的父级路径和全部子项，保证搜索结果仍然具有完整上下文。
+
+#### 3. 开始和控制番茄钟
+
+1. 点击番茄图标或其下方的 `25/5` 时间，都可以选择该事项并开始专注。
+2. 点击事项旁的计时设置图标，可以覆盖全局默认时长。例如 `40/10` 表示专注 40 分钟、休息 10 分钟。
+3. 需要紧凑显示时可打开计时小窗。小窗空白区域可拖动，关闭位置会被记住；双击小窗可返回主程序。
+4. 专注过程中可通过 **随手记** 记录临时想法。草稿会合并到最终事项记录中，不会与结束时的记录弹窗冲突。
+5. 专注完成后会播放提示音、激活主窗口并打开事项记录编辑器；完整番茄会在进入休息前写入数据库。
+6. 专注超过 30 秒后打断，会记录实际时长但不增加完整番茄次数；不足 30 秒会立即结束且不写入数据库。打断休息不会删除此前已经完成的番茄次数。
+
+番茄钟运行时会锁定当前事项。点击其它事项只会显示原因说明，不会悄悄切换正在进行的计时。
+
+#### 4. 使用 Markdown 编写事项记录
+
+专注过程中、专注结束后以及专注历史中都可以打开记录编辑器。编辑器会显示本次番茄的日期、起止时间和实际时长。当前支持：
+
+- 标题：`## 标题`
+- 粗体和斜体：`**重点**`、`*补充*`
+- 列表：`- 清单项`、`1. 步骤`
+- 引用和行内代码：`> 摘要`、`` `代码` ``
+- 链接和删除线：`[名称](https://example.com)`、`~~废弃~~`
+
+编辑器旁会直接显示 Markdown 帮助。事项记录在历史界面中以排版后的形式显示，并且之后仍可修改。
+
+#### 5. 查看与搜索专注历史
+
+- 点击任意未完成或已完成事项的历史图标，可以查看该事项的全部记录；父事项会包含所有后代事项的历史。
+- 记录按日期折叠分组，并以两列形式显示起止时间、实际时长、完成状态和事项记录。
+- 历史界面的搜索只检索当前事项树；主工具栏中的记录搜索则检索全部事项。
+- 两种搜索都支持普通文本、区分大小写、正则表达式以及可选的开始/结束日期。日期全部留空时默认搜索所有时间。
+- 点击搜索结果的跳转按钮，会打开对应一级事项的完整历史并定位到该记录；返回按钮可以回到原搜索结果。
+
+#### 6. 使用数据看板
+
+- **日看板**显示事项时间分布和每四小时的专注时段汇总。
+- **周看板**按照设置中的每周起始日展示连续七天。
+- **年看板**按月汇总全年实际专注时间。
+- 三种看板都可以选择具体日期，也可以一键回到当前日期。
+- 通过 **显示层级** 可以只统计顶层分组，或展开到更深的事项层级；子项始终归属于父项区域。
+- 鼠标移动到图形或图例上会同步高亮关联数据；父事项的总时长始终包含全部子事项。
+
+#### 7. 设置声音、显示和数据
+
+- **常规：**切换界面语言和缩放比例；快捷键为 `Ctrl++`、`Ctrl+-` 和 `Ctrl+0`。
+- **番茄钟：**设置全局默认时长，以及计时小窗是否保持置顶。
+- **声音：**选择专注/休息结束提示音，并混合大雨、森林雨、溪流、雷雨、风声和壁炉等环境声。自然声仅在专注期间播放，进入休息时会自动淡出。
+- **数据：**设置每周起始日，或选择已有 SQLite 数据库。选择已有文件会直接打开该数据库，不会覆盖它。
+
+备份时请先关闭软件，然后将 `pomodoro.sqlite3` 复制到安全位置。更换电脑时复制该文件，并在 **设置 → 数据** 中选择它即可。替换或手工修改数据库前务必保留备份。
+
+#### 常见问题
+
+- **Electron 安装不完整：**只删除 `node_modules/electron` 后重新运行 `npm install`。如果出现网络或 TLS 错误，说明 Electron 运行时下载被中断。
+- **原生模块编译失败：**安装 Visual Studio Build Tools，并选择“使用 C++ 的桌面开发”；或者使用存在兼容预编译文件的 Node/Electron 组合。
+- **Linux 没有提示音：**检查桌面音量混合器中 Chromium/Electron 是否被静音，并确认 PipeWire 或 PulseAudio 存在有效输出设备。
+- **AppImage 无法启动：**安装发行版提供的 FUSE 兼容包，或执行 `--appimage-extract` 后运行 `squashfs-root/AppRun`。
+- **Windows SmartScreen 提示：**当前安装包尚未进行代码签名。请先确认文件来自本仓库的 GitHub Release，再选择继续运行。
 
 ### 从源码运行
 
