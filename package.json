@@ -13,7 +13,9 @@
     "test": "node --test",
     "posttest": "electron-rebuild -f -w better-sqlite3",
     "dist:dir": "electron-builder --dir",
-    "dist:win": "electron-builder --win nsis --x64",
+    "dist:win": "npm run dist:win:x64",
+    "dist:win:x64": "electron-builder --win nsis --x64",
+    "dist:win:ia32": "electron-builder --win nsis --ia32",
     "dist:linux": "electron-builder --linux AppImage --x64"
   },
   "engines": {
