@@ -132,6 +132,12 @@ jobs:
             ./gradlew assembleDebug
           fi
 
+      - name: Verify APK signature
+        run: |
+          APK_PATH="$(find android/app/build/outputs/apk -name '*.apk' -type f | head -n 1)"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+          "$APKSIGNER" verify --verbose --print-certs "$APK_PATH"
+
       - name: Prepare APK artifact
         run: |
           mkdir -p dist
