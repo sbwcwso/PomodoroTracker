@@ -16,7 +16,26 @@ npm run check
 npm test
 ```
 
-生成 Windows 安装包：`npm run dist:win`。
+## 打包
+
+Windows 安装程序需要在 Windows 上构建：
+
+```powershell
+npm ci
+npm run dist:win
+```
+
+产物位于 `dist/pomodoro-tracker-版本号-win-x64.exe`，使用 NSIS 安装，可选择安装目录，并创建桌面和开始菜单快捷方式。
+
+Linux AppImage 需要在 x64 Linux 环境中构建。项目包含 `better-sqlite3` 原生模块，因此不要直接在 Windows 上交叉打包：
+
+```bash
+npm ci
+npm run dist:linux
+chmod +x dist/*.AppImage
+```
+
+AppImage 产物位于 `dist/pomodoro-tracker-版本号-linux-x64.AppImage`。仓库同时提供 `.github/workflows/build-installers.yml`，在 GitHub 上手动运行工作流或推送 `v*` 标签时，会分别使用 Windows 和 Ubuntu 构建两个平台的安装包。
 
 ## 架构
 

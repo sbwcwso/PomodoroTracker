@@ -12,7 +12,9 @@
     "pretest": "npm rebuild better-sqlite3",
     "test": "node --test",
     "posttest": "electron-rebuild -f -w better-sqlite3",
-    "dist:win": "electron-builder --win nsis"
+    "dist:dir": "electron-builder --dir",
+    "dist:win": "electron-builder --win nsis --x64",
+    "dist:linux": "electron-builder --linux AppImage --x64"
   },
   "engines": {
     "node": ">=22.12.0"
@@ -32,6 +34,10 @@
   "build": {
     "appId": "dev.pomodoro.tracker",
     "productName": "番茄钟",
+    "artifactName": "pomodoro-tracker-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "dist"
+    },
     "files": [
       "src/**/*",
       "package.json"
@@ -41,6 +47,19 @@
     ],
     "win": {
       "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "番茄钟"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Utility",
+      "executableName": "pomodoro-tracker",
+      "synopsis": "支持分级事项和本地记录的番茄钟"
     }
   }
 }
