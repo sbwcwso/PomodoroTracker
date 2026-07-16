@@ -25,7 +25,7 @@ npm ci
 npm run dist:win
 ```
 
-产物位于 `dist/pomodoro-tracker-版本号-win-x64.exe`，使用 NSIS 安装，可选择安装目录，并创建桌面和开始菜单快捷方式。
+产物位于 `dist/pomodoro-tracker-版本号-win-x64.exe`，使用 NSIS 安装，可选择英文或简体中文（默认英文）、选择安装目录，并创建桌面和开始菜单快捷方式。安装时选择的语言会作为应用首次启动时的界面语言，之后可在设置中随时切换。
 
 Linux AppImage 需要在 x64 Linux 环境中构建。项目包含 `better-sqlite3` 原生模块，因此不要直接在 Windows 上交叉打包：
 
@@ -43,6 +43,7 @@ AppImage 产物位于 `dist/pomodoro-tracker-版本号-linux-x64.AppImage`。仓
 - `src/preload`：最小权限的渲染层 API 桥。
 - `src/renderer`：界面、计时器和用户交互，不直接访问 Node.js。
 - `test`：Node.js 内置测试框架的自动化测试。
+- `docs/internationalization.md`：中英文界面文字与后续功能的双语开发约定。
 
 数据库保存在 Electron 的 `userData` 目录，Windows 通常位于 `%APPDATA%/pomodoro-tracker/pomodoro.sqlite3`。主进程开启外键约束和 WAL，删除父事项时会级联清理子项与对应专注记录。
 

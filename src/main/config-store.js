@@ -1,7 +1,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const DEFAULT_TASK_GROUP = Object.freeze({ id: 'default', name: '默认分组', collapsed: false });
+const DEFAULT_TASK_GROUP = Object.freeze({
+  id: 'default',
+  name: 'Default group',
+  collapsed: false,
+});
 const NATURE_SOUND_IDS = Object.freeze([
   'heavy-rain',
   'forest-rain',
@@ -20,7 +24,7 @@ const DEFAULT_NATURE_SOUND_VOLUMES = Object.freeze({
 });
 
 const DEFAULT_CONFIG = Object.freeze({
-  language: 'zh-CN',
+  language: 'en-US',
   zoomFactor: 1,
   focusDurations: [25],
   breakDurations: [5],
@@ -134,7 +138,7 @@ class ConfigStore {
       return {
         ...DEFAULT_CONFIG,
         ...parsed,
-        language: 'zh-CN',
+        language: parsed.language === 'zh-CN' ? 'zh-CN' : 'en-US',
         focusDurations: normalizeDurations(parsed.focusDurations, DEFAULT_CONFIG.focusDurations),
         breakDurations: normalizeDurations(parsed.breakDurations, DEFAULT_CONFIG.breakDurations),
         timerPopupAlwaysOnTop: parsed.timerPopupAlwaysOnTop !== false,
@@ -170,6 +174,12 @@ class ConfigStore {
 
   setZoomFactor(value) {
     this.config.zoomFactor = Math.min(2, Math.max(0.5, Math.round(Number(value) * 10) / 10));
+    this.save();
+    return this.getAll();
+  }
+
+  setLanguage(value) {
+    this.config.language = value === 'zh-CN' ? 'zh-CN' : 'en-US';
     this.save();
     return this.getAll();
   }

@@ -1,4 +1,5 @@
 const state = {
+  language: 'en-US',
   tasks: [],
   selectedRootId: null,
   collapsedTaskIds: new Set(),
@@ -7,7 +8,7 @@ const state = {
   dashboardAnchorDate: '',
   dashboardSelection: null,
   dashboardTotalSeconds: 0,
-  taskGroups: [{ id: 'default', name: '默认分组', collapsed: false }],
+  taskGroups: [{ id: 'default', name: 'Default group', collapsed: false }],
   defaultTaskGroupId: 'default',
   groupSelectionMode: false,
   selectedGroupIds: new Set(),
@@ -162,6 +163,7 @@ const elements = {
   settingsForm: document.querySelector('#settings-dialog form'),
   settingsTabs: [...document.querySelectorAll('[data-settings-tab]')],
   settingsPanels: [...document.querySelectorAll('[data-settings-panel]')],
+  languageSelect: document.querySelector('#language-select'),
   zoomRange: document.querySelector('#zoom-range'),
   zoomValue: document.querySelector('#zoom-value'),
   focusDurations: document.querySelector('#focus-durations'),
@@ -200,7 +202,7 @@ function upgradeTooltips(root = document) {
   }
   root.querySelectorAll?.('[title]').forEach((element) => candidates.push(element));
   candidates.forEach((element) => {
-    const label = element.getAttribute('title')?.trim();
+    const label = (element.dataset.i18nTitleSource || element.getAttribute('title'))?.trim();
     if (label) {
       element.dataset.tooltip = label;
     }
@@ -299,6 +301,9 @@ document.addEventListener('focusout', (event) => {
 window.addEventListener('blur', () => hideTooltip());
 
 function showSettings(config) {
+  state.language = config.language === 'zh-CN' ? 'zh-CN' : 'en-US';
+  window.i18n.setLocale(state.language);
+  elements.languageSelect.value = state.language;
   const percent = Math.round(config.zoomFactor * 100);
   elements.zoomRange.value = percent;
   elements.zoomValue.textContent = `${percent}%`;
@@ -506,11 +511,11 @@ function renderMarkdown(value) {
 function formatTaskDuration(seconds) {
   const totalMinutes = Math.round(Math.max(0, Number(seconds) || 0) / 60);
   if (totalMinutes < 60) {
-    return `${totalMinutes} 分钟`;
+    return window.i18n.t(`${totalMinutes} 分钟`);
   }
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
-  return minutes > 0 ? `${hours} 小时 ${minutes} 分钟` : `${hours} 小时`;
+  return window.i18n.t(minutes > 0 ? `${hours} 小时 ${minutes} 分钟` : `${hours} 小时`);
 }
 function formatTime(seconds) {
   const safeSeconds = Math.max(0, seconds);
@@ -523,33 +528,33 @@ function formatRecordedDuration(seconds) {
   const hours = Math.floor(safeSeconds / 3600);
   const minutes = Math.floor((safeSeconds % 3600) / 60);
   const rest = safeSeconds % 60;
-  return hours > 0 ? `${hours} 小时 ${minutes} 分` : `${minutes} 分 ${rest} 秒`;
+  return window.i18n.t(hours > 0 ? `${hours} 小时 ${minutes} 分` : `${minutes} 分 ${rest} 秒`);
 }
 function formatCompactDuration(seconds) {
   const safeSeconds = Math.max(0, Number(seconds) || 0);
   if (safeSeconds < 60) {
-    return `${safeSeconds} 秒`;
+    return window.i18n.t(`${safeSeconds} 秒`);
   }
   if (safeSeconds === 3600) {
-    return '1 小时';
+    return window.i18n.t('1 小时');
   }
   if (safeSeconds > 3600) {
-    return `${(safeSeconds / 3600).toFixed(1)} 小时`;
+    return window.i18n.t(`${(safeSeconds / 3600).toFixed(1)} 小时`);
   }
-  return `${Math.floor(safeSeconds / 60)} 分钟`;
+  return window.i18n.t(`${Math.floor(safeSeconds / 60)} 分钟`);
 }
 
 function formatDashboardTotalDuration(seconds) {
   const safeSeconds = Math.max(0, Number(seconds) || 0);
   if (safeSeconds < 60) {
-    return `${safeSeconds} 秒`;
+    return window.i18n.t(`${safeSeconds} 秒`);
   }
   const hours = Math.floor(safeSeconds / 3600);
   const minutes = Math.floor((safeSeconds % 3600) / 60);
   if (hours > 0) {
-    return minutes > 0 ? `${hours} 小时 ${minutes} 分钟` : `${hours} 小时`;
+    return window.i18n.t(minutes > 0 ? `${hours} 小时 ${minutes} 分钟` : `${hours} 小时`);
   }
-  return `${minutes} 分钟`;
+  return window.i18n.t(`${minutes} 分钟`);
 }
 
 function chartScale(maxSeconds) {
@@ -574,7 +579,7 @@ function formatHistoryDate(date) {
   if (!year || !month || !day) {
     return '日期未知';
   }
-  return new Date(year, month - 1, day).toLocaleDateString('zh-CN', {
+  return new Date(year, month - 1, day).toLocaleDateString(state.language, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -678,7 +683,7 @@ function dashboardRangeLabel(period, startDate, endDate) {
   const end = dateFromValue(endDate);
   end.setDate(end.getDate() - 1);
   if (period === 'day') {
-    return start.toLocaleDateString('zh-CN', {
+    return start.toLocaleDateString(state.language, {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -689,7 +694,7 @@ function dashboardRangeLabel(period, startDate, endDate) {
     return `${start.getFullYear()} 年`;
   }
   const options = { month: 'long', day: 'numeric' };
-  return `${start.toLocaleDateString('zh-CN', options)} – ${end.toLocaleDateString('zh-CN', options)}`;
+  return `${start.toLocaleDateString(state.language, options)} – ${end.toLocaleDateString(state.language, options)}`;
 }
 
 function buildDashboardTree(taskStats) {
@@ -805,7 +810,7 @@ function buildTimeline(period, startDate, timelineStats) {
     date.setDate(start.getDate() + index);
     const value = localDateValue(date);
     return {
-      label: date.toLocaleDateString('zh-CN', { weekday: 'short' }),
+      label: date.toLocaleDateString(state.language, { weekday: 'short' }),
       sublabel: `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`,
       seconds: values.get(value) || 0,
     };
@@ -2085,7 +2090,7 @@ async function runRecordSearch() {
             const completedAt = new Date(session.completed_at);
             const dateLabel = Number.isNaN(completedAt.getTime())
               ? session.completed_at
-              : completedAt.toLocaleString('zh-CN', {
+              : completedAt.toLocaleString(state.language, {
                   year: 'numeric',
                   month: '2-digit',
                   day: '2-digit',
@@ -2147,8 +2152,8 @@ async function completeTimer() {
     state.remaining = state.duration;
     startTimer();
     await window.pomodoro.notifyTimerCompletion({
-      title: '番茄完成',
-      body: '这段专注已经记录，开始休息。',
+      title: window.i18n.t('番茄完成'),
+      body: window.i18n.t('这段专注已经记录，开始休息。'),
       timer: timerPopupState(),
     });
     await window.pomodoro.showMainWindow();
@@ -2163,8 +2168,8 @@ async function completeTimer() {
   await window.pomodoro.hideTimerPopup();
   state.timerPopupOpen = false;
   await window.pomodoro.notifyTimerCompletion({
-    title: '休息结束',
-    body: '休息时间结束，可以开始下一个番茄。',
+    title: window.i18n.t('休息结束'),
+    body: window.i18n.t('休息时间结束，可以开始下一个番茄。'),
   });
   await window.pomodoro.showMainWindow();
   state.activeTaskId = null;
@@ -3081,6 +3086,18 @@ elements.zoomRange.addEventListener('input', async () => {
   const config = await window.pomodoro.setZoomFactor(Number(elements.zoomRange.value) / 100);
   showSettings(config);
 });
+elements.languageSelect.addEventListener('change', async () => {
+  const config = await window.pomodoro.setLanguage(elements.languageSelect.value);
+  state.language = config.language;
+  window.i18n.setLocale(config.language);
+  showSettings(config);
+  renderDurationButtons();
+  renderTasks();
+  renderTimer();
+  if (state.currentView === 'dashboard') {
+    renderDashboard();
+  }
+});
 elements.focusDurations.addEventListener('change', saveDurations);
 elements.breakDurations.addEventListener('change', saveDurations);
 elements.weekStartDay.addEventListener('change', async () => {
@@ -3142,6 +3159,9 @@ elements.settingsForm.addEventListener('submit', async (event) => {
   elements.settingsDialog.close();
 });
 window.pomodoro.onSettingsChanged((config) => {
+  state.language = config.language === 'zh-CN' ? 'zh-CN' : 'en-US';
+  window.i18n.setLocale(state.language);
+  elements.languageSelect.value = state.language;
   const percent = Math.round(config.zoomFactor * 100);
   elements.zoomRange.value = percent;
   elements.zoomValue.textContent = `${percent}%`;
@@ -3243,6 +3263,9 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 window.pomodoro.getSettings().then((config) => {
+  state.language = config.language === 'zh-CN' ? 'zh-CN' : 'en-US';
+  window.i18n.setLocale(state.language);
+  elements.languageSelect.value = state.language;
   state.focusDurations = [...config.focusDurations];
   state.breakDurations = [...config.breakDurations];
   state.focusDuration = state.focusDurations.includes(25) ? 25 : state.focusDurations[0];

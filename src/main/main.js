@@ -38,6 +38,17 @@ function defaultDatabasePath() {
   return path.join(app.getPath('userData'), 'pomodoro.sqlite3');
 }
 
+function installerLanguage() {
+  try {
+    const value = fs
+      .readFileSync(path.join(process.resourcesPath, 'installer-language.txt'), 'utf8')
+      .trim();
+    return value === 'zh-CN' ? 'zh-CN' : 'en-US';
+  } catch {
+    return 'en-US';
+  }
+}
+
 function currentDatabasePath() {
   return configStore.getAll().databasePath || defaultDatabasePath();
 }
@@ -50,6 +61,17 @@ function publicConfig() {
     focusEndSoundUrl: config.focusEndSoundPath ? pathToFileURL(config.focusEndSoundPath).href : '',
     breakEndSoundUrl: config.breakEndSoundPath ? pathToFileURL(config.breakEndSoundPath).href : '',
   };
+}
+
+function text(english, chinese) {
+  return configStore?.getAll().language === 'zh-CN' ? chinese : english;
+}
+
+function broadcastSettings(config = publicConfig()) {
+  BrowserWindow.getAllWindows().forEach((window) => {
+    window.webContents.send('settings:changed', config);
+  });
+  return config;
 }
 
 function openDatabase() {
@@ -339,10 +361,13 @@ function registerHandlers() {
     }),
   );
   ipcMain.handle('settings:get', () => publicConfig());
+  ipcMain.handle('settings:setLanguage', (_event, value) =>
+    broadcastSettings(configStore.setLanguage(value)),
+  );
   ipcMain.handle('nature-sounds:load', (_event, id) => {
     const filename = NATURE_SOUND_FILES[String(id)];
     if (!filename) {
-      throw new Error('未知的自然声');
+      throw new Error(text('Unknown nature sound', '未知的自然声'));
     }
     return fs.promises.readFile(
       path.join(__dirname, '..', 'renderer', 'assets', 'sounds', 'nature', filename),
@@ -390,10 +415,15 @@ function registerHandlers() {
   ipcMain.handle('settings:chooseDatabasePath', async (event) => {
     const window = BrowserWindow.fromWebContents(event.sender);
     const result = await dialog.showOpenDialog(window, {
-      title: '选择已有数据库文件',
+      title: text('Select an existing database', '选择已有数据库文件'),
       defaultPath: currentDatabasePath(),
-      filters: [{ name: 'SQLite 数据库', extensions: ['sqlite3', 'sqlite', 'db'] }],
-      buttonLabel: '使用此数据库',
+      filters: [
+        {
+          name: text('SQLite database', 'SQLite 数据库'),
+          extensions: ['sqlite3', 'sqlite', 'db'],
+        },
+      ],
+      buttonLabel: text('Use this database', '使用此数据库'),
       properties: ['openFile'],
     });
     if (result.canceled || !result.filePaths[0]) {
@@ -404,8 +434,16 @@ function registerHandlers() {
   ipcMain.handle('settings:chooseSoundPath', async (event, kind) => {
     const window = BrowserWindow.fromWebContents(event.sender);
     const result = await dialog.showOpenDialog(window, {
-      title: kind === 'breakEnd' ? '选择休息结束提示音' : '选择专注结束提示音',
-      filters: [{ name: '音频文件', extensions: ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'] }],
+      title:
+        kind === 'breakEnd'
+          ? text('Select break completion sound', '选择休息结束提示音')
+          : text('Select focus completion sound', '选择专注结束提示音'),
+      filters: [
+        {
+          name: text('Audio files', '音频文件'),
+          extensions: ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'],
+        },
+      ],
       properties: ['openFile'],
     });
     if (result.canceled || !result.filePaths[0]) {
@@ -454,7 +492,7 @@ function registerHandlers() {
     const window = BrowserWindow.fromWebContents(event.sender);
     if (Notification.isSupported()) {
       new Notification({
-        title: String(payload.title || '计时结束'),
+        title: String(payload.title || text('Timer finished', '计时结束')),
         body: String(payload.body || ''),
         silent: true,
       }).show();
@@ -480,7 +518,12 @@ function registerHandlers() {
 }
 
 app.whenReady().then(() => {
-  configStore = new ConfigStore(path.join(app.getPath('userData'), 'config.json'));
+  const configPath = path.join(app.getPath('userData'), 'config.json');
+  const firstLaunch = !fs.existsSync(configPath);
+  configStore = new ConfigStore(configPath);
+  if (firstLaunch) {
+    configStore.setLanguage(installerLanguage());
+  }
   openDatabase();
   registerHandlers();
   createWindow();

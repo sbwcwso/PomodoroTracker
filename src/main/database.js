@@ -193,7 +193,7 @@ class AppDatabase {
     const groups =
       Array.isArray(taskGroups) && taskGroups.length > 0
         ? taskGroups
-        : [{ id: 'default', name: '默认分组', collapsed: false }];
+        : [{ id: 'default', name: 'Default group', collapsed: false }];
     const migrate = this.db.transaction(() => {
       const groupTaskIds = {};
       groups.forEach((group, index) => {
@@ -202,7 +202,7 @@ class AppDatabase {
             'INSERT INTO tasks (title, parent_id, notes, is_group, is_default_group) VALUES (?, NULL, ?, 1, ?)',
           )
           .run(
-            String(group.name || '未命名分组').trim(),
+            String(group.name || 'Unnamed group').trim(),
             JSON.stringify({ collapsed: group.collapsed === true }),
             group.id === defaultTaskGroupId || (!defaultTaskGroupId && index === 0) ? 1 : 0,
           );

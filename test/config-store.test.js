@@ -5,17 +5,28 @@ const path = require('node:path');
 const { test } = require('node:test');
 const { ConfigStore } = require('../src/main/config-store');
 
-test('persists zoom and defaults to Chinese', () => {
+test('persists zoom and defaults to English', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'pomodoro-config-'));
   const filePath = path.join(directory, 'config.json');
   const store = new ConfigStore(filePath);
-  assert.equal(store.getAll().language, 'zh-CN');
+  assert.equal(store.getAll().language, 'en-US');
   assert.equal(store.getAll().timerPopupAlwaysOnTop, true);
   assert.equal(store.getAll().weekStartDay, 1);
   assert.deepEqual(store.getAll().focusDurations, [25]);
   assert.deepEqual(store.getAll().breakDurations, [5]);
   store.setZoomFactor(1.3);
   assert.equal(new ConfigStore(filePath).getAll().zoomFactor, 1.3);
+  fs.rmSync(directory, { recursive: true });
+});
+
+test('persists a supported interface language and rejects unknown locales', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'pomodoro-config-'));
+  const filePath = path.join(directory, 'config.json');
+  const store = new ConfigStore(filePath);
+  store.setLanguage('zh-CN');
+  assert.equal(new ConfigStore(filePath).getAll().language, 'zh-CN');
+  store.setLanguage('fr-FR');
+  assert.equal(new ConfigStore(filePath).getAll().language, 'en-US');
   fs.rmSync(directory, { recursive: true });
 });
 

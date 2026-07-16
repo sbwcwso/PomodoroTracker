@@ -5,6 +5,12 @@ const closeButton = document.querySelector('#close-popup');
 let currentTimer = null;
 let measuredTitle = '';
 
+window.pomodoro.getSettings().then((config) => window.i18n.setLocale(config.language));
+window.pomodoro.onSettingsChanged((config) => {
+  window.i18n.setLocale(config.language);
+  renderTimer();
+});
+
 function formatTime(seconds) {
   const minutes = Math.floor(seconds / 60);
   const rest = seconds % 60;
