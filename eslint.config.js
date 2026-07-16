@@ -1,7 +1,14 @@
 const js = require('@eslint/js');
 
 module.exports = [
-  { ignores: ['node_modules/**', 'dist/**'] },
+  {
+    ignores: [
+      'node_modules/**',
+      'dist/**',
+      'android/app/src/main/assets/public/**',
+      'android/**/build/**',
+    ],
+  },
   js.configs.recommended,
   {
     files: ['eslint.config.js'],
@@ -24,6 +31,10 @@ module.exports = [
         __dirname: 'readonly',
         setInterval: 'readonly',
         clearInterval: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        URL: 'readonly',
+        Event: 'readonly',
         console: 'readonly',
       },
     },

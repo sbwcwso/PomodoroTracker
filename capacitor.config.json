@@ -1,0 +1,18 @@
+{
+  "appId": "dev.pomodoro.tracker",
+  "appName": "Pomodoro Tracker",
+  "webDir": "src/renderer",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "backgroundColor": "#f4efe6",
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_pomodoro",
+      "iconColor": "#b65239"
+    }
+  }
+}

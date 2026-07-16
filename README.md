@@ -8,9 +8,9 @@
 
 ## English
 
-Pomodoro Tracker is a local-first Electron focus tracker for hierarchical tasks. It combines a
-Pomodoro timer, task history, Markdown session notes, dashboards, natural ambient sounds, and a
-movable mini timer in one desktop application.
+Pomodoro Tracker is a local-first focus tracker for desktop and Android. It combines a Pomodoro
+timer, hierarchical tasks, Markdown session notes, dashboards, natural ambient sounds, and focus
+history in one application. The desktop edition uses Electron; the Android edition uses Capacitor.
 
 ### Highlights
 
@@ -31,6 +31,7 @@ GitHub Releases provide the following packages:
 - Windows x64 NSIS installer
 - Windows x86 (32-bit) NSIS installer
 - Linux x64 AppImage
+- Android APK (Android 7.0 or newer)
 
 The Windows installer supports English and Simplified Chinese and defaults to English. The
 application is currently unsigned, so Windows may show a SmartScreen warning.
@@ -46,7 +47,9 @@ application is currently unsigned, so Windows may show a SmartScreen warning.
 3. On Linux, make the AppImage executable with `chmod +x Pomodoro*.AppImage`, then run it. If the
    distribution does not support AppImage out of the box, install its FUSE compatibility package
    or extract the image with `--appimage-extract`.
-4. Open **File → Settings**. Confirm the default focus and break duration, the first day of the
+4. On Android, allow notifications when prompted so timer completion remains visible while the
+   application is in the background. Android 7.0 (API 24) or newer is required.
+5. Open **File → Settings**. Confirm the default focus and break duration, the first day of the
    week, mini timer behavior, completion sounds, and database location.
 
 The interface language selected by the Windows installer is used on first launch. You can change
@@ -140,6 +143,10 @@ For backups, close the app and copy `pomodoro.sqlite3` to a safe location. To mo
 computers, copy that file and select it from **Settings → Data**. Keep a backup before replacing or
 editing a database manually.
 
+Android keeps its own persistent on-device data store. It does not open the desktop SQLite file
+directly yet. Uninstalling the Android application may remove that local data, so treat the first
+Android release as a preview until import/export is added.
+
 #### Troubleshooting
 
 - **Electron did not install:** delete only `node_modules/electron`, then run `npm install` again.
@@ -180,6 +187,16 @@ npm run dist:win:x64
 npm run dist:win:ia32
 ```
 
+Build an Android debug APK after installing Android Studio/JDK 21 and configuring the Android SDK:
+
+```powershell
+npm ci
+npm run android:apk
+```
+
+The APK is written under `android/app/build/outputs/apk/debug/`. `npm run android:sync` refreshes
+the native project after changes to the shared renderer.
+
 Build the AppImage on an x64 Linux host:
 
 ```bash
@@ -218,7 +235,7 @@ a parent task cascades to its descendants and related focus records.
 
 ## 简体中文
 
-番茄事项是一款本地优先的 Electron 专注管理工具，支持任意层级的事项结构，并将番茄钟、专注历史、Markdown 事项记录、数据看板、自然环境声和可移动计时小窗整合在一个桌面应用中。
+番茄事项是一款支持桌面与 Android 的本地优先专注管理工具，支持任意层级的事项结构，并将番茄钟、专注历史、Markdown 事项记录、数据看板和自然环境声整合在一个应用中。桌面版使用 Electron，Android 版使用 Capacitor。
 
 ### 主要功能
 
@@ -239,6 +256,7 @@ GitHub Releases 提供以下安装文件：
 - Windows x64 NSIS 安装程序
 - Windows x86（32 位）NSIS 安装程序
 - Linux x64 AppImage
+- Android APK（Android 7.0 或更高版本）
 
 Windows 安装程序支持英文和简体中文，并默认选择英文。应用目前没有代码签名，因此 Windows 可能显示 SmartScreen 提示。
 
@@ -249,7 +267,8 @@ Windows 安装程序支持英文和简体中文，并默认选择英文。应用
 1. 从 GitHub Releases 下载与系统对应的安装包。
 2. 绝大多数现代 Windows 电脑应使用 x64 安装包；只有 32 位 Windows 才使用 x86。运行安装程序后选择英文或简体中文，并指定安装目录。
 3. Linux 用户先执行 `chmod +x Pomodoro*.AppImage`，然后运行 AppImage。如果发行版默认不支持 AppImage，请安装 FUSE 兼容包，或使用 `--appimage-extract` 解压运行。
-4. 打开 **文件 → 设置**，确认默认专注/休息时长、每周起始日、计时小窗、结束提示音和数据库位置。
+4. Android 首次运行时请允许通知权限，以便应用进入后台后仍能显示计时结束提醒。最低支持 Android 7.0（API 24）。
+5. 打开 **文件 → 设置**，确认默认专注/休息时长、每周起始日、计时小窗、结束提示音和数据库位置。
 
 Windows 安装器中选择的语言会用于软件首次启动，之后可在 **设置 → 常规** 中即时切换，无需重启。
 
@@ -312,6 +331,8 @@ Windows 安装器中选择的语言会用于软件首次启动，之后可在 **
 
 备份时请先关闭软件，然后将 `pomodoro.sqlite3` 复制到安全位置。更换电脑时复制该文件，并在 **设置 → 数据** 中选择它即可。替换或手工修改数据库前务必保留备份。
 
+Android 版使用独立的手机本地持久化数据，目前还不能直接打开桌面版 SQLite 文件。卸载 Android 应用可能同时删除手机端数据，因此在加入导入/导出功能前，请将首个 Android 版本视为预览版。
+
 #### 常见问题
 
 - **Electron 安装不完整：** 只删除 `node_modules/electron` 后重新运行 `npm install`。如果出现网络或 TLS 错误，说明 Electron 运行时下载被中断。
@@ -345,6 +366,15 @@ npm ci
 npm run dist:win:x64
 npm run dist:win:ia32
 ```
+
+安装 Android Studio、JDK 21 并配置 Android SDK 后，可以构建 Android 调试 APK：
+
+```powershell
+npm ci
+npm run android:apk
+```
+
+APK 位于 `android/app/build/outputs/apk/debug/`。修改共用界面后，可通过 `npm run android:sync` 将资源同步到原生项目。
 
 在 x64 Linux 主机上构建 AppImage：
 

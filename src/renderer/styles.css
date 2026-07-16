@@ -2884,3 +2884,88 @@ form select {
     grid-template-columns: minmax(130px, auto) 1fr;
   }
 }
+
+/* Capacitor reuses the desktop renderer while respecting phone safe areas and touch targets. */
+.capacitor-platform body {
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.capacitor-platform .app-menu {
+  position: sticky;
+  top: 0;
+  z-index: 80;
+}
+.capacitor-platform [data-app-action='quit'],
+.capacitor-platform #open-timer-popup,
+.capacitor-platform .settings-checkbox-card:has(#timer-popup-topmost),
+.capacitor-platform [data-sound-action='choose'],
+.capacitor-platform #choose-database-path {
+  display: none !important;
+}
+.capacitor-platform .task-panel,
+.capacitor-platform .task-board {
+  height: calc(100dvh - 130px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  max-height: calc(100dvh - 130px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+.capacitor-platform button,
+.capacitor-platform input,
+.capacitor-platform select,
+.capacitor-platform textarea {
+  touch-action: manipulation;
+}
+
+@media (max-width: 620px) {
+  .capacitor-platform main {
+    padding: 10px 8px 18px;
+  }
+  .capacitor-platform .view-tabs {
+    padding-inline: 8px;
+  }
+  .capacitor-platform .root-column {
+    padding: 10px 8px;
+  }
+  .capacitor-platform .group-toolbar {
+    flex-wrap: wrap;
+  }
+  .capacitor-platform .group-toolbar__title {
+    display: none;
+  }
+  .capacitor-platform .task-search {
+    order: -1;
+    width: calc(100% - 38px);
+    margin-left: 0;
+  }
+  .capacitor-platform .root-item {
+    gap: 4px;
+    padding-inline: 5px;
+  }
+  .capacitor-platform .root-item .move-controls,
+  .capacitor-platform .task-group__header .move-controls,
+  .capacitor-platform .completed-action-spacer--move {
+    display: none;
+  }
+  .capacitor-platform .tree-task-branch.depth-1,
+  .capacitor-platform .tree-task-branch.depth-2,
+  .capacitor-platform .tree-task-branch.depth-3,
+  .capacitor-platform .tree-task-branch.depth-4,
+  .capacitor-platform .tree-task-branch.depth-5,
+  .capacitor-platform .tree-task-branch.depth-6,
+  .capacitor-platform .tree-task-branch.has-children:not(.depth-0) {
+    --tree-indent: 12px;
+    margin-left: 12px;
+  }
+  .capacitor-platform dialog {
+    width: calc(100vw - 12px);
+    max-width: calc(100vw - 12px);
+    max-height: calc(100dvh - 12px);
+  }
+  .capacitor-platform .active-timer {
+    right: 8px;
+    left: 8px;
+    width: auto;
+  }
+}
