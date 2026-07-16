@@ -1,5 +1,6 @@
 {
   "name": "pomodoro-tracker",
+  "desktopName": "Pomodoro Tracker",
   "version": "0.1.0",
   "description": "A bilingual, local-first Pomodoro tracker with hierarchical tasks and focus analytics",
   "author": "sbwcwso",
@@ -45,7 +46,6 @@
   "build": {
     "appId": "dev.pomodoro.tracker",
     "productName": "番茄钟",
-    "desktopName": "Pomodoro Tracker",
     "artifactName": "pomodoro-tracker-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "dist"
