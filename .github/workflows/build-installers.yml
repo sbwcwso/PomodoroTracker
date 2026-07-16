@@ -124,6 +124,7 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          chmod +x gradlew
           if [[ -f app/release.p12 ]]; then
             export ANDROID_KEYSTORE_PATH=release.p12
             ./gradlew assembleRelease
