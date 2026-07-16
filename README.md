@@ -305,20 +305,20 @@ Windows 安装器中选择的语言会用于软件首次启动，之后可在 **
 
 #### 7. 设置声音、显示和数据
 
-- **常规：**切换界面语言和缩放比例；快捷键为 `Ctrl++`、`Ctrl+-` 和 `Ctrl+0`。
-- **番茄钟：**设置全局默认时长，以及计时小窗是否保持置顶。
-- **声音：**选择专注/休息结束提示音，并混合大雨、森林雨、溪流、雷雨、风声和壁炉等环境声。自然声仅在专注期间播放，进入休息时会自动淡出。
-- **数据：**设置每周起始日，或选择已有 SQLite 数据库。选择已有文件会直接打开该数据库，不会覆盖它。
+- **常规：** 切换界面语言和缩放比例；快捷键为 `Ctrl++`、`Ctrl+-` 和 `Ctrl+0`。
+- **番茄钟：** 设置全局默认时长，以及计时小窗是否保持置顶。
+- **声音：** 选择专注/休息结束提示音，并混合大雨、森林雨、溪流、雷雨、风声和壁炉等环境声。自然声仅在专注期间播放，进入休息时会自动淡出。
+- **数据：** 设置每周起始日，或选择已有 SQLite 数据库。选择已有文件会直接打开该数据库，不会覆盖它。
 
 备份时请先关闭软件，然后将 `pomodoro.sqlite3` 复制到安全位置。更换电脑时复制该文件，并在 **设置 → 数据** 中选择它即可。替换或手工修改数据库前务必保留备份。
 
 #### 常见问题
 
-- **Electron 安装不完整：**只删除 `node_modules/electron` 后重新运行 `npm install`。如果出现网络或 TLS 错误，说明 Electron 运行时下载被中断。
-- **原生模块编译失败：**安装 Visual Studio Build Tools，并选择“使用 C++ 的桌面开发”；或者使用存在兼容预编译文件的 Node/Electron 组合。
-- **Linux 没有提示音：**检查桌面音量混合器中 Chromium/Electron 是否被静音，并确认 PipeWire 或 PulseAudio 存在有效输出设备。
-- **AppImage 无法启动：**安装发行版提供的 FUSE 兼容包，或执行 `--appimage-extract` 后运行 `squashfs-root/AppRun`。
-- **Windows SmartScreen 提示：**当前安装包尚未进行代码签名。请先确认文件来自本仓库的 GitHub Release，再选择继续运行。
+- **Electron 安装不完整：** 只删除 `node_modules/electron` 后重新运行 `npm install`。如果出现网络或 TLS 错误，说明 Electron 运行时下载被中断。
+- **原生模块编译失败：** 安装 Visual Studio Build Tools，并选择“使用 C++ 的桌面开发”；或者使用存在兼容预编译文件的 Node/Electron 组合。
+- **Linux 没有提示音：** 检查桌面音量混合器中 Chromium/Electron 是否被静音，并确认 PipeWire 或 PulseAudio 存在有效输出设备。
+- **AppImage 无法启动：** 安装发行版提供的 FUSE 兼容包，或执行 `--appimage-extract` 后运行 `squashfs-root/AppRun`。
+- **Windows SmartScreen 提示：** 当前安装包尚未进行代码签名。请先确认文件来自本仓库的 GitHub Release，再选择继续运行。
 
 ### 从源码运行
 
