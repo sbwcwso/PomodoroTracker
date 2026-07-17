@@ -27,6 +27,9 @@
     "dist:win:x64": "electron-builder --win nsis --x64 --publish never",
     "dist:win:ia32": "electron-builder --win nsis --ia32 --publish never",
     "dist:linux": "electron-builder --linux AppImage --x64 --publish never",
+    "dist:mac": "npm run dist:mac:arm64",
+    "dist:mac:x64": "electron-builder --mac dmg --x64 --publish never",
+    "dist:mac:arm64": "electron-builder --mac dmg --arm64 --publish never",
     "android:sync": "cap sync android",
     "android:open": "cap open android",
     "android:apk": "npm run android:sync && cd android && gradlew assembleDebug"
@@ -93,6 +96,15 @@
       "category": "Utility",
       "executableName": "pomodoro-tracker",
       "synopsis": "支持分级事项和本地记录的番茄钟"
+    },
+    "mac": {
+      "icon": "build/icon.icns",
+      "target": "dmg",
+      "category": "public.app-category.productivity",
+      "identity": null
+    },
+    "dmg": {
+      "title": "Pomodoro Tracker ${version}"
     }
   }
 }

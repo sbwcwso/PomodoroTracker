@@ -59,6 +59,16 @@ jobs:
             command: npm run dist:linux
             artifact: linux-x64-appimage
             path: dist/*-linux-x86_64.AppImage
+          - label: macOS Intel
+            os: macos-15-intel
+            command: npm run dist:mac:x64
+            artifact: macos-intel-dmg
+            path: dist/*-mac-x64.dmg
+          - label: macOS Apple Silicon
+            os: macos-15
+            command: npm run dist:mac:arm64
+            artifact: macos-apple-silicon-dmg
+            path: dist/*-mac-arm64.dmg
     runs-on: ${{ matrix.os }}
     steps:
       - name: Check out repository
@@ -74,6 +84,8 @@ jobs:
         run: npm ci
 
       - name: Build installer
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: ${{ matrix.command }}
 
       - name: Upload installer

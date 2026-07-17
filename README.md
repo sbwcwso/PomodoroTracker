@@ -31,6 +31,8 @@ GitHub Releases provide the following packages:
 - Windows x64 NSIS installer
 - Windows x86 (32-bit) NSIS installer
 - Linux x64 AppImage
+- macOS Intel x64 DMG
+- macOS Apple Silicon arm64 DMG
 - Android APK (Android 7.0 or newer)
 
 The Windows installer supports English and Simplified Chinese and defaults to English. The
@@ -47,9 +49,13 @@ application is currently unsigned, so Windows may show a SmartScreen warning.
 3. On Linux, make the AppImage executable with `chmod +x Pomodoro*.AppImage`, then run it. If the
    distribution does not support AppImage out of the box, install its FUSE compatibility package
    or extract the image with `--appimage-extract`.
-4. On Android, allow notifications when prompted so timer completion remains visible while the
+4. On macOS, download the DMG that matches the processor, open it, and drag Pomodoro Tracker into
+   Applications. Choose Apple Silicon for M1 and newer Macs; choose Intel for older Intel Macs.
+   Because the current package is not notarized, the first launch may require Control-clicking the
+   application and choosing **Open**.
+5. On Android, allow notifications when prompted so timer completion remains visible while the
    application is in the background. Android 7.0 (API 24) or newer is required.
-5. Open **File → Settings**. Confirm the default focus and break duration, the first day of the
+6. Open **File → Settings**. Confirm the default focus and break duration, the first day of the
    week, mini timer behavior, completion sounds, and database location.
 
 The interface language selected by the Windows installer is used on first launch. You can change
@@ -168,6 +174,9 @@ desktop/mobile backup or replace the current phone data.
   AppImage with `--appimage-extract` and start `squashfs-root/AppRun`.
 - **Windows SmartScreen warning:** the package is not code-signed yet. Verify that it came from this
   repository's GitHub Release before choosing to run it.
+- **macOS says the developer cannot be verified:** the DMG is currently unsigned and not notarized.
+  Verify that it came from this repository, then Control-click the app in Applications and choose
+  **Open**. A public release should eventually use Apple Developer ID signing and notarization.
 
 ### Run from source
 
@@ -214,16 +223,28 @@ npm run dist:linux
 chmod +x dist/*.AppImage
 ```
 
+Build a macOS DMG on a Mac. Use the command matching the processor architecture:
+
+```bash
+npm ci
+npm run dist:mac:arm64 # Apple Silicon
+npm run dist:mac:x64   # Intel
+```
+
+The unsigned DMG is written to `dist/`. Publishing without a Gatekeeper warning requires an Apple
+Developer ID certificate and Apple notarization credentials.
+
 Because the project uses the native `better-sqlite3` module, build each package on its target
 operating system instead of cross-compiling it from another platform.
 
 ### Continuous delivery
 
 The `Build and release installers` GitHub Actions workflow runs formatting, lint, and tests, then
-builds Windows x64, Windows x86, and Linux x64 AppImage artifacts:
+builds Windows x64, Windows x86, Linux x64 AppImage, macOS Intel DMG, and macOS Apple Silicon DMG
+artifacts:
 
 - pushes and pull requests targeting `main` build downloadable workflow artifacts;
-- tags matching `v*` also publish all three packages to a GitHub Release;
+- tags matching `v*` also publish every desktop package and the Android APK to a GitHub Release;
 - the workflow can be started manually from the Actions page.
 
 To publish a release, update the version when needed and push a tag such as `v0.1.0`.
@@ -265,6 +286,8 @@ GitHub Releases 提供以下安装文件：
 - Windows x64 NSIS 安装程序
 - Windows x86（32 位）NSIS 安装程序
 - Linux x64 AppImage
+- macOS Intel x64 DMG
+- macOS Apple Silicon arm64 DMG
 - Android APK（Android 7.0 或更高版本）
 
 Windows 安装程序支持英文和简体中文，并默认选择英文。应用目前没有代码签名，因此 Windows 可能显示 SmartScreen 提示。
@@ -276,8 +299,9 @@ Windows 安装程序支持英文和简体中文，并默认选择英文。应用
 1. 从 GitHub Releases 下载与系统对应的安装包。
 2. 绝大多数现代 Windows 电脑应使用 x64 安装包；只有 32 位 Windows 才使用 x86。运行安装程序后选择英文或简体中文，并指定安装目录。
 3. Linux 用户先执行 `chmod +x Pomodoro*.AppImage`，然后运行 AppImage。如果发行版默认不支持 AppImage，请安装 FUSE 兼容包，或使用 `--appimage-extract` 解压运行。
-4. Android 首次运行时请允许通知权限，以便应用进入后台后仍能显示计时结束提醒。最低支持 Android 7.0（API 24）。
-5. 打开 **文件 → 设置**，确认默认专注/休息时长、每周起始日、计时小窗、结束提示音和数据库位置。
+4. macOS 用户请根据处理器下载对应 DMG：M1 及更新机型使用 Apple Silicon 版，旧款 Intel Mac 使用 Intel 版。打开 DMG 后将番茄事项拖入“应用程序”。当前安装包尚未公证，首次运行可能需要按住 Control 点击应用并选择“打开”。
+5. Android 首次运行时请允许通知权限，以便应用进入后台后仍能显示计时结束提醒。最低支持 Android 7.0（API 24）。
+6. 打开 **文件 → 设置**，确认默认专注/休息时长、每周起始日、计时小窗、结束提示音和数据库位置。
 
 Windows 安装器中选择的语言会用于软件首次启动，之后可在 **设置 → 常规** 中即时切换，无需重启。
 
@@ -352,6 +376,7 @@ Android 版仍使用应用私有目录保存日常工作数据。卸载前请通
 - **Linux 没有提示音：** 检查桌面音量混合器中 Chromium/Electron 是否被静音，并确认 PipeWire 或 PulseAudio 存在有效输出设备。
 - **AppImage 无法启动：** 安装发行版提供的 FUSE 兼容包，或执行 `--appimage-extract` 后运行 `squashfs-root/AppRun`。
 - **Windows SmartScreen 提示：** 当前安装包尚未进行代码签名。请先确认文件来自本仓库的 GitHub Release，再选择继续运行。
+- **macOS 提示无法验证开发者：** 当前 DMG 尚未使用 Apple Developer ID 签名和公证。确认安装包来自本仓库后，在“应用程序”中按住 Control 点击应用并选择“打开”。正式公开发布时建议配置 Apple 签名与公证。
 
 ### 从源码运行
 
@@ -396,14 +421,24 @@ npm run dist:linux
 chmod +x dist/*.AppImage
 ```
 
+在 Mac 上构建 DMG，请根据处理器架构执行对应命令：
+
+```bash
+npm ci
+npm run dist:mac:arm64 # Apple Silicon
+npm run dist:mac:x64   # Intel
+```
+
+未签名的 DMG 会输出到 `dist/`。如果需要消除 Gatekeeper 警告，还需要配置 Apple Developer ID 证书和 Apple 公证凭据。
+
 项目使用了原生模块 `better-sqlite3`，因此各平台安装包应在对应操作系统上构建，不建议跨平台交叉打包。
 
 ### 自动构建与发布
 
-`Build and release installers` GitHub Actions 工作流会先运行格式检查、代码检查和测试，然后构建 Windows x64、Windows x86 和 Linux x64 AppImage：
+`Build and release installers` GitHub Actions 工作流会先运行格式检查、代码检查和测试，然后构建 Windows x64、Windows x86、Linux x64 AppImage、macOS Intel DMG 和 macOS Apple Silicon DMG：
 
 - 推送到 `main` 或向 `main` 提交拉取请求时，会生成可下载的工作流构建产物；
-- 推送符合 `v*` 的标签时，还会自动创建 GitHub Release 并上传三个安装包；
+- 推送符合 `v*` 的标签时，还会自动创建 GitHub Release，并上传所有桌面安装包和 Android APK；
 - 也可以在 GitHub Actions 页面手动运行工作流。
 
 发布版本时，根据需要更新版本号，然后推送类似 `v0.1.0` 的标签即可。
