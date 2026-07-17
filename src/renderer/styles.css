@@ -2621,6 +2621,174 @@ dialog::backdrop {
   font-size: 10px;
   line-height: 1.55;
 }
+.mobile-only {
+  display: none !important;
+}
+.database-transfer-card {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding: 14px 15px;
+  border: 1px solid #d8ded3;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f0f5ed, #fffaf2);
+}
+.database-transfer-card strong,
+.database-transfer-card small {
+  display: block;
+}
+.database-transfer-card strong {
+  color: #3f4d3d;
+  font-size: 12px;
+}
+.database-transfer-card small {
+  margin-top: 3px;
+  color: #85867d;
+  font-size: 10px;
+}
+.database-transfer-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+.database-import-dialog {
+  width: min(760px, calc(100vw - 40px));
+  max-width: none;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgb(151 157 143 / 34%);
+  border-radius: 20px;
+  background: #fffdf8;
+  box-shadow: 0 24px 80px rgb(34 39 32 / 24%);
+}
+.database-import-dialog form {
+  padding: 0;
+}
+.database-import-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid #e4dfd4;
+  background: linear-gradient(120deg, #edf3e9, #fff9f0);
+}
+.database-import-header span {
+  color: #b34e38;
+  font-size: 10px;
+  font-weight: 700;
+}
+.database-import-header h2 {
+  margin: 5px 0 2px;
+  font-size: 24px;
+}
+.database-import-header p {
+  margin: 0;
+  color: #85847b;
+  font-size: 11px;
+}
+.database-import-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 18px 24px 8px;
+}
+.database-import-summary > div {
+  padding: 12px;
+  border: 1px solid #e1ddd2;
+  border-radius: 11px;
+  background: #faf8f2;
+}
+.database-import-summary span,
+.database-import-summary strong {
+  display: block;
+}
+.database-import-summary span {
+  color: #89877f;
+  font-size: 9px;
+}
+.database-import-summary strong {
+  margin-top: 3px;
+  color: #334232;
+  font-size: 19px;
+}
+.database-import-conflicts {
+  margin: 10px 24px 0;
+  padding: 13px;
+  border: 1px solid #e8c6b9;
+  border-radius: 12px;
+  background: #fcf1eb;
+}
+.database-import-conflict-heading strong,
+.database-import-conflict-heading span {
+  display: block;
+}
+.database-import-conflict-heading strong {
+  color: #a94431;
+  font-size: 11px;
+}
+.database-import-conflict-heading span {
+  margin-top: 2px;
+  color: #8b6c63;
+  font-size: 9px;
+}
+.database-import-conflict-list {
+  display: grid;
+  gap: 7px;
+  max-height: 150px;
+  margin-top: 10px;
+  overflow-y: auto;
+}
+.database-import-conflict-item {
+  display: grid;
+  gap: 5px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 65%);
+  font-size: 9px;
+}
+.database-import-conflict-session {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+.database-import-conflict-session > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+.database-import-conflict-source {
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: #e7ece3;
+  color: #596a58;
+  text-align: center;
+}
+.database-import-conflict-session:last-child .database-import-conflict-source {
+  background: #f4ddd4;
+  color: #a24d39;
+}
+.database-import-conflict-item strong {
+  overflow: hidden;
+  color: #4c4d47;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.database-import-conflict-item time {
+  color: #9b6659;
+}
+.database-import-note {
+  margin: 14px 24px 0;
+  color: #787970;
+  font-size: 10px;
+  line-height: 1.55;
+}
+.database-import-actions {
+  flex-wrap: wrap;
+  margin: 16px 24px 22px;
+}
 .settings-actions {
   margin-top: 14px;
   padding-top: 14px;
@@ -2906,6 +3074,9 @@ form select {
 .capacitor-platform #choose-database-path {
   display: none !important;
 }
+.capacitor-platform .mobile-only {
+  display: inline-flex !important;
+}
 .capacitor-platform .task-panel,
 .capacitor-platform .task-board {
   height: calc(100dvh - 130px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
@@ -2927,6 +3098,29 @@ form select {
   }
   .capacitor-platform .root-column {
     padding: 10px 8px;
+  }
+  .database-transfer-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .database-transfer-actions > button {
+    flex: 1;
+  }
+  .database-import-dialog {
+    width: calc(100vw - 18px);
+    max-height: calc(100dvh - 24px);
+  }
+  .database-import-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-inline: 16px;
+  }
+  .database-import-conflicts,
+  .database-import-note,
+  .database-import-actions {
+    margin-inline: 16px;
+  }
+  .database-import-actions > button {
+    flex: 1 1 45%;
   }
   .capacitor-platform .group-toolbar {
     flex-wrap: wrap;

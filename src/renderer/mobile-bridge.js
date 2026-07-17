@@ -99,9 +99,73 @@
   }
 
   const state = loadState();
+  let pendingDatabaseImport = null;
 
   function saveState() {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function databaseSnapshot() {
+    return { tasks: state.tasks, sessions: state.sessions };
+  }
+
+  async function exportDatabase() {
+    return window.MobileDatabaseTransfer.exportSnapshot(databaseSnapshot());
+  }
+
+  async function prepareDatabaseImport() {
+    const selected = await window.MobileDatabaseTransfer.pickAndReadSnapshot();
+    if (!selected) {
+      return null;
+    }
+    const preview = window.DatabaseTransfer.mergeSnapshots(
+      databaseSnapshot(),
+      selected.snapshot,
+      'keep-current',
+    );
+    pendingDatabaseImport = selected.snapshot;
+    return {
+      fileName: selected.fileName,
+      summary: preview.summary,
+      conflicts: preview.conflicts,
+      canOverwrite: true,
+    };
+  }
+
+  async function applyDatabaseImport(mode) {
+    if (!pendingDatabaseImport) {
+      throw new Error('当前没有等待导入的数据库');
+    }
+    let snapshot;
+    let summary;
+    if (mode === 'overwrite') {
+      snapshot = window.DatabaseTransfer.normalizeSnapshot(pendingDatabaseImport);
+      summary = {
+        sourceTaskCount: snapshot.tasks.length,
+        sourceSessionCount: snapshot.sessions.length,
+        importedTaskCount: snapshot.tasks.length,
+        matchedTaskCount: 0,
+        importedSessionCount: snapshot.sessions.length,
+        duplicateSessionCount: 0,
+        conflictCount: 0,
+        removedLocalSessionCount: state.sessions.length,
+      };
+    } else {
+      const result = window.DatabaseTransfer.mergeSnapshots(
+        databaseSnapshot(),
+        pendingDatabaseImport,
+        mode === 'keep-imported' ? 'keep-imported' : 'keep-current',
+      );
+      snapshot = result.snapshot;
+      summary = result.summary;
+    }
+    state.tasks = snapshot.tasks;
+    state.sessions = snapshot.sessions;
+    state.nextTaskId = Math.max(0, ...state.tasks.map((task) => task.id)) + 1;
+    state.nextSessionId = Math.max(0, ...state.sessions.map((session) => session.id)) + 1;
+    pendingDatabaseImport = null;
+    saveState();
+    return summary;
   }
 
   function publicSettings() {
@@ -833,6 +897,9 @@
     },
     setTaskGrouping: async () => publicSettings(),
     chooseDatabasePath: async () => publicSettings(),
+    prepareDatabaseImport,
+    applyDatabaseImport,
+    exportDatabase,
     chooseSoundPath: async () => publicSettings(),
     clearSoundPath: async () => publicSettings(),
     showTimerPopup,

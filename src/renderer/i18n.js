@@ -211,6 +211,58 @@
     数据库文件: 'Database file',
     选择已有文件: 'Choose existing file…',
     '选择已有文件...': 'Choose existing file…',
+    数据库导入与备份: 'Database import and backup',
+    在设备之间传递事项专注历史和事项记录:
+      'Transfer tasks, focus history, and notes between devices.',
+    导出数据库: 'Export database',
+    导入数据库: 'Import database',
+    合并数据库: 'Merge database',
+    数据库同步: 'Database sync',
+    检查导入内容: 'Review imported data',
+    来源事项: 'Source tasks',
+    来源记录: 'Source records',
+    重复记录: 'Duplicate records',
+    时间冲突: 'Time conflicts',
+    发现同时进行的专注记录: 'Overlapping focus records found',
+    本机: 'Local',
+    导入: 'Imported',
+    合并时请选择保留本机记录还是导入记录:
+      'Choose whether local or imported records win during the merge.',
+    相同层级和名称的事项会归并为同一个事项完全相同的专注记录不会重复导入:
+      'Tasks with the same hierarchy and name are combined. Identical focus records are not imported twice.',
+    覆盖本机数据: 'Replace local data',
+    合并并保留本机冲突记录: 'Merge, keep local conflicts',
+    合并并保留导入冲突记录: 'Merge, keep imported conflicts',
+    确认合并: 'Confirm merge',
+    导出番茄钟数据库: 'Export Pomodoro database',
+    保存或分享数据库: 'Save or share database',
+    计时正在进行: 'Timer in progress',
+    暂时不能导出数据库: 'Database export is temporarily unavailable',
+    请先完成或打断当前番茄钟再导出数据库:
+      'Finish or interrupt the current pomodoro before exporting.',
+    这样可以确保导出文件包含完整的专注记录:
+      'This ensures the exported file contains a complete focus record.',
+    数据库已生成: 'Database created',
+    请选择保存或分享位置: 'Choose where to save or share it',
+    该SQLite文件可在桌面端直接合并也可以在另一台手机上导入:
+      'This SQLite file can be merged on desktop or imported on another phone.',
+    导出失败: 'Export failed',
+    没有生成数据库文件: 'No database file was created',
+    请检查设备存储空间后重试: 'Check available device storage and try again.',
+    暂时不能导入或合并数据库: 'Database import is temporarily unavailable',
+    请先完成或打断当前番茄钟再进行数据库同步:
+      'Finish or interrupt the current pomodoro before syncing databases.',
+    导入期间事项和记录会发生变化: 'Tasks and records change during an import.',
+    无法读取数据库: 'Unable to read database',
+    请选择有效的番茄钟数据库: 'Choose a valid Pomodoro database',
+    '支持 .sqlite3、.sqlite 和 .db 文件。': 'Supported file types: .sqlite3, .sqlite, and .db.',
+    数据库同步完成: 'Database sync complete',
+    本机数据已被替换: 'Local data replaced',
+    数据库合并完成: 'Database merge complete',
+    数据库同步失败: 'Database sync failed',
+    没有修改当前数据: 'Current data was not changed',
+    请确认所选文件来自番茄钟并且文件没有损坏:
+      'Make sure the selected file came from Pomodoro Tracker and is not damaged.',
     数据库包含事项结构专注历史和事项记录更换前请确认目标文件无误:
       'The database contains tasks, focus history, and notes. Verify the target file before switching.',
     完成: 'Done',
@@ -313,7 +365,7 @@
   let locale = 'en-US';
 
   function compact(value) {
-    return String(value).replace(/[\s，。？：；]/g, '');
+    return String(value).replace(/[\s，、。？：；]/g, '');
   }
 
   const compactEnglish = new Map(
@@ -379,6 +431,11 @@
       [/^(\d+) 个事项及其所有子项和记录$/, '$1 tasks, their descendants, and records'],
       [/^(\d+) 个完整分组$/, '$1 complete groups'],
       [/^目标位置中已存在“(.+)”$/, '“$1” already exists at the destination'],
+      [
+        /^新增 (\d+) 个事项，导入 (\d+) 条专注记录。$/,
+        'Added $1 tasks and imported $2 focus records.',
+      ],
+      [/^已自动跳过 (\d+) 条完全相同的记录。$/, 'Skipped $1 identical records.'],
     ];
     for (const [pattern, replacement] of replacements) {
       if (pattern.test(source)) {

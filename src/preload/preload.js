@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('pomodoro', {
+  platform: process.platform,
   listTasks: () => ipcRenderer.invoke('tasks:list'),
   createTask: (input) => ipcRenderer.invoke('tasks:create', input),
   renameTask: (id, title) => ipcRenderer.invoke('tasks:rename', id, title),
@@ -31,6 +32,9 @@ contextBridge.exposeInMainWorld('pomodoro', {
   setWeekStartDay: (value) => ipcRenderer.invoke('settings:setWeekStartDay', value),
   setTaskGrouping: (value) => ipcRenderer.invoke('settings:setTaskGrouping', value),
   chooseDatabasePath: () => ipcRenderer.invoke('settings:chooseDatabasePath'),
+  prepareDatabaseImport: () => ipcRenderer.invoke('database:prepareImport'),
+  applyDatabaseImport: (mode) => ipcRenderer.invoke('database:applyImport', mode),
+  exportDatabase: async () => ({ canceled: true }),
   chooseSoundPath: (kind) => ipcRenderer.invoke('settings:chooseSoundPath', kind),
   clearSoundPath: (kind) => ipcRenderer.invoke('settings:clearSoundPath', kind),
   showTimerPopup: (timer) => ipcRenderer.invoke('timer-popup:show', timer),

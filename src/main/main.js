@@ -24,6 +24,7 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 let database;
 let configStore;
 let timerPopup;
+let pendingDatabaseImportPath = '';
 const DEFAULT_WINDOW_SIZE = Object.freeze({ width: 1940, height: 1189 });
 const NATURE_SOUND_FILES = Object.freeze({
   'heavy-rain': 'heavy-rain.ogg',
@@ -435,6 +436,42 @@ function registerHandlers() {
       return publicConfig();
     }
     return switchDatabase(result.filePaths[0]);
+  });
+  ipcMain.handle('database:prepareImport', async (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    const result = await dialog.showOpenDialog(window, {
+      title: text('Merge another Pomodoro database', '合并另一份番茄钟数据库'),
+      defaultPath: path.dirname(currentDatabasePath()),
+      filters: [
+        {
+          name: text('SQLite database', 'SQLite 数据库'),
+          extensions: ['sqlite3', 'sqlite', 'db'],
+        },
+      ],
+      buttonLabel: text('Review merge', '检查合并内容'),
+      properties: ['openFile'],
+    });
+    if (result.canceled || !result.filePaths[0]) {
+      return null;
+    }
+    const sourcePath = path.resolve(result.filePaths[0]);
+    if (sourcePath === path.resolve(currentDatabasePath())) {
+      throw new Error(
+        text('Choose a different database to merge.', '请选择另一份数据库进行合并。'),
+      );
+    }
+    const preview = database.previewMerge(sourcePath);
+    pendingDatabaseImportPath = sourcePath;
+    return { ...preview, fileName: path.basename(sourcePath), canOverwrite: false };
+  });
+  ipcMain.handle('database:applyImport', (_event, mode) => {
+    if (!pendingDatabaseImportPath) {
+      throw new Error(text('No database is waiting to be merged.', '当前没有等待合并的数据库。'));
+    }
+    const conflictPolicy = mode === 'keep-imported' ? 'keep-imported' : 'keep-current';
+    const summary = database.mergeFromFile(pendingDatabaseImportPath, conflictPolicy);
+    pendingDatabaseImportPath = '';
+    return summary;
   });
   ipcMain.handle('settings:chooseSoundPath', async (event, kind) => {
     const window = BrowserWindow.fromWebContents(event.sender);

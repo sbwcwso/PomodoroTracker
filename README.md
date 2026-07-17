@@ -139,14 +139,22 @@ focus history but remain editable.
   play only during focus and fade out for breaks.
 - **Data:** configure the first day of the week or select an existing SQLite database. Selecting an
   existing file opens that database; it does not overwrite it.
+- **Offline database sync:** Android can export its local tasks and focus history as a desktop-
+  compatible `.sqlite3` file. Android can import a desktop database by replacing local data or
+  merging it. Desktop can merge another Pomodoro database without changing its configured
+  database location.
+
+During a merge, tasks with the same hierarchy and name are combined and identical sessions are
+skipped. If two non-identical sessions overlap in time, the app shows the conflict before writing
+and asks whether the local or imported record should be kept.
 
 For backups, close the app and copy `pomodoro.sqlite3` to a safe location. To move between
 computers, copy that file and select it from **Settings → Data**. Keep a backup before replacing or
 editing a database manually.
 
-Android keeps its own persistent on-device data store. It does not open the desktop SQLite file
-directly yet. Uninstalling the Android application may remove that local data, so treat the first
-Android release as a preview until import/export is added.
+Android keeps its working data in private on-device storage. Use **Settings → Data → Export
+database** to save or share a backup before uninstalling the app. Use **Import database** to merge a
+desktop/mobile backup or replace the current phone data.
 
 #### Troubleshooting
 
@@ -329,10 +337,13 @@ Windows 安装器中选择的语言会用于软件首次启动，之后可在 **
 - **番茄钟：** 设置全局默认时长，以及计时小窗是否保持置顶。
 - **声音：** 选择专注/休息结束提示音，并混合大雨、森林雨、溪流、雷雨、风声、壁炉、海浪、森林鸟鸣、夜间虫鸣和瀑布等环境声。自然声仅在专注期间播放，进入休息时会自动淡出。
 - **数据：** 设置每周起始日，或选择已有 SQLite 数据库。选择已有文件会直接打开该数据库，不会覆盖它。
+- **离线数据库同步：** Android 可以把手机本地事项和专注历史导出为桌面端兼容的 `.sqlite3` 文件；导入桌面数据库时可以覆盖手机数据，也可以合并。桌面端可以合并另一份番茄钟数据库，而不会改变当前配置的数据库位置。
+
+合并时，相同层级且同名的事项会自动归并，完全相同的专注记录会被跳过。如果两条不同记录的时间区间重叠，软件会在写入前显示冲突，并让用户选择保留本机记录还是导入记录。
 
 备份时请先关闭软件，然后将 `pomodoro.sqlite3` 复制到安全位置。更换电脑时复制该文件，并在 **设置 → 数据** 中选择它即可。替换或手工修改数据库前务必保留备份。
 
-Android 版使用独立的手机本地持久化数据，目前还不能直接打开桌面版 SQLite 文件。卸载 Android 应用可能同时删除手机端数据，因此在加入导入/导出功能前，请将首个 Android 版本视为预览版。
+Android 版仍使用应用私有目录保存日常工作数据。卸载前请通过 **设置 → 数据 → 导出数据库** 保存或分享备份；需要恢复或同步时，可以通过 **导入数据库** 合并桌面端/手机端备份，或用它覆盖当前手机数据。
 
 #### 常见问题
 

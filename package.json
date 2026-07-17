@@ -39,7 +39,9 @@
     "@capacitor/app": "^8.1.1",
     "@capacitor/browser": "^8.0.4",
     "@capacitor/core": "^8.4.2",
+    "@capacitor/filesystem": "^8.1.2",
     "@capacitor/local-notifications": "^8.2.1",
+    "@capacitor/share": "^8.0.1",
     "better-sqlite3": "^12.2.0"
   },
   "devDependencies": {
@@ -50,7 +52,8 @@
     "eslint": "^9.31.0",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-jsdoc": "^50.8.0",
-    "prettier": "^3.6.2"
+    "prettier": "^3.6.2",
+    "sql.js": "^1.14.1"
   },
   "build": {
     "appId": "dev.pomodoro.tracker",

@@ -180,6 +180,19 @@ const elements = {
   natureSoundItems: [...document.querySelectorAll('[data-nature-sound]')],
   databasePath: document.querySelector('#database-path'),
   chooseDatabasePath: document.querySelector('#choose-database-path'),
+  exportDatabase: document.querySelector('#export-database'),
+  importDatabase: document.querySelector('#import-database'),
+  databaseImportDialog: document.querySelector('#database-import-dialog'),
+  databaseImportFile: document.querySelector('#database-import-file'),
+  databaseImportTaskCount: document.querySelector('#database-import-task-count'),
+  databaseImportSessionCount: document.querySelector('#database-import-session-count'),
+  databaseImportDuplicateCount: document.querySelector('#database-import-duplicate-count'),
+  databaseImportConflictCount: document.querySelector('#database-import-conflict-count'),
+  databaseImportConflicts: document.querySelector('#database-import-conflicts'),
+  databaseImportConflictList: document.querySelector('#database-import-conflict-list'),
+  databaseImportOverwrite: document.querySelector('#database-import-overwrite'),
+  databaseImportKeepCurrent: document.querySelector('#database-import-keep-current'),
+  databaseImportKeepImported: document.querySelector('#database-import-keep-imported'),
   activeTimer: document.querySelector('#active-timer'),
   activeTimerPhase: document.querySelector('#active-timer-phase'),
   activeTimerTitle: document.querySelector('#active-timer-title'),
@@ -196,6 +209,9 @@ appTooltip.className = 'app-tooltip';
 appTooltip.setAttribute('role', 'tooltip');
 appTooltip.hidden = true;
 document.body.append(appTooltip);
+if (window.pomodoro.platform === 'android') {
+  elements.importDatabase.textContent = '导入数据库';
+}
 let tooltipTarget = null;
 let tooltipTimer = null;
 
@@ -1385,6 +1401,84 @@ async function refresh() {
   renderTasks();
   if (state.currentView === 'dashboard') {
     await renderDashboard();
+  }
+}
+
+function renderDatabaseImportPreview(preview) {
+  const summary = preview.summary;
+  elements.databaseImportFile.textContent = preview.fileName;
+  elements.databaseImportTaskCount.textContent = String(summary.sourceTaskCount);
+  elements.databaseImportSessionCount.textContent = String(summary.sourceSessionCount);
+  elements.databaseImportDuplicateCount.textContent = String(summary.duplicateSessionCount);
+  elements.databaseImportConflictCount.textContent = String(summary.conflictCount);
+  elements.databaseImportConflicts.hidden = summary.conflictCount === 0;
+  elements.databaseImportConflictList.replaceChildren();
+  preview.conflicts.slice(0, 20).forEach((conflict) => {
+    const item = document.createElement('div');
+    item.className = 'database-import-conflict-item';
+    const appendSession = (label, session) => {
+      const row = document.createElement('div');
+      row.className = 'database-import-conflict-session';
+      const source = document.createElement('span');
+      source.className = 'database-import-conflict-source';
+      source.textContent = label;
+      const details = document.createElement('div');
+      const task = document.createElement('strong');
+      task.textContent = session.task_path;
+      const time = document.createElement('time');
+      const start = new Date(session.started_at);
+      const end = new Date(session.completed_at);
+      time.textContent = `${start.toLocaleString()} – ${end.toLocaleTimeString()}`;
+      details.append(task, time);
+      row.append(source, details);
+      item.append(row);
+    };
+    conflict.current.forEach((session) => appendSession('本机', session));
+    appendSession('导入', conflict.imported);
+    elements.databaseImportConflictList.append(item);
+  });
+  elements.databaseImportOverwrite.hidden = preview.canOverwrite !== true;
+  elements.databaseImportKeepImported.hidden = summary.conflictCount === 0;
+  elements.databaseImportKeepCurrent.textContent =
+    summary.conflictCount === 0 ? '确认合并' : '合并并保留本机冲突记录';
+  elements.databaseImportDialog.showModal();
+}
+
+async function applyDatabaseImport(mode) {
+  const buttons = [
+    elements.databaseImportOverwrite,
+    elements.databaseImportKeepCurrent,
+    elements.databaseImportKeepImported,
+  ];
+  buttons.forEach((button) => {
+    button.disabled = true;
+  });
+  try {
+    const summary = await window.pomodoro.applyDatabaseImport(mode);
+    elements.databaseImportDialog.close();
+    state.selectedRootId = null;
+    state.collapsedTaskIds.clear();
+    await refresh();
+    await showActionDialog({
+      eyebrow: '数据库同步完成',
+      title: mode === 'overwrite' ? '本机数据已被替换' : '数据库合并完成',
+      message: `新增 ${summary.importedTaskCount} 个事项，导入 ${summary.importedSessionCount} 条专注记录。`,
+      detail:
+        summary.duplicateSessionCount > 0
+          ? `已自动跳过 ${summary.duplicateSessionCount} 条完全相同的记录。`
+          : '',
+    });
+  } catch (error) {
+    await showActionDialog({
+      eyebrow: '数据库同步失败',
+      title: '没有修改当前数据',
+      message: error.message,
+      detail: '请确认所选文件来自番茄钟，并且文件没有损坏。',
+    });
+  } finally {
+    buttons.forEach((button) => {
+      button.disabled = false;
+    });
   }
 }
 function openDialog(parentId = '', groupId = null) {
@@ -3146,6 +3240,66 @@ elements.chooseDatabasePath.addEventListener('click', async () => {
   showSettings(await window.pomodoro.chooseDatabasePath());
   await refresh();
 });
+elements.exportDatabase.addEventListener('click', async () => {
+  if (state.running) {
+    await showActionDialog({
+      eyebrow: '计时正在进行',
+      title: '暂时不能导出数据库',
+      message: '请先完成或打断当前番茄钟，再导出数据库。',
+      detail: '这样可以确保导出文件包含完整的专注记录。',
+    });
+    return;
+  }
+  try {
+    const result = await window.pomodoro.exportDatabase();
+    if (!result?.canceled) {
+      await showActionDialog({
+        eyebrow: '数据库已生成',
+        title: '请选择保存或分享位置',
+        message: result.fileName,
+        detail: '该 SQLite 文件可在桌面端直接合并，也可以在另一台手机上导入。',
+      });
+    }
+  } catch (error) {
+    await showActionDialog({
+      eyebrow: '导出失败',
+      title: '没有生成数据库文件',
+      message: error.message,
+      detail: '请检查设备存储空间后重试。',
+    });
+  }
+});
+elements.importDatabase.addEventListener('click', async () => {
+  if (state.running) {
+    await showActionDialog({
+      eyebrow: '计时正在进行',
+      title: '暂时不能导入或合并数据库',
+      message: '请先完成或打断当前番茄钟，再进行数据库同步。',
+      detail: '导入期间事项和记录会发生变化。',
+    });
+    return;
+  }
+  try {
+    const preview = await window.pomodoro.prepareDatabaseImport();
+    if (preview) {
+      renderDatabaseImportPreview(preview);
+    }
+  } catch (error) {
+    await showActionDialog({
+      eyebrow: '无法读取数据库',
+      title: '请选择有效的番茄钟数据库',
+      message: error.message,
+      detail: '支持 .sqlite3、.sqlite 和 .db 文件。',
+    });
+  }
+});
+elements.databaseImportOverwrite.addEventListener('click', () => applyDatabaseImport('overwrite'));
+elements.databaseImportKeepCurrent.addEventListener('click', () =>
+  applyDatabaseImport('keep-current'),
+);
+elements.databaseImportKeepImported.addEventListener('click', () =>
+  applyDatabaseImport('keep-imported'),
+);
 document.querySelectorAll('[data-sound-action]').forEach((button) => {
   button.addEventListener('click', async () => {
     const action = button.dataset.soundAction;

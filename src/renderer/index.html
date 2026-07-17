@@ -777,10 +777,60 @@
             <p class="settings-data-note">
               数据库包含事项结构、专注历史和事项记录。更换前请确认目标文件无误。
             </p>
+            <section class="database-transfer-card" aria-labelledby="database-transfer-title">
+              <div>
+                <strong id="database-transfer-title">数据库导入与备份</strong>
+                <small>在设备之间传递事项、专注历史和事项记录。</small>
+              </div>
+              <div class="database-transfer-actions">
+                <button type="button" id="export-database" class="mobile-only">导出数据库</button>
+                <button type="button" id="import-database" class="primary">合并数据库</button>
+              </div>
+            </section>
           </section>
         </div>
         <div class="dialog-actions settings-actions">
           <button class="primary" type="submit">完成</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="database-import-dialog" class="database-import-dialog">
+      <form method="dialog">
+        <header class="database-import-header">
+          <div>
+            <span>数据库同步</span>
+            <h2>检查导入内容</h2>
+            <p id="database-import-file"></p>
+          </div>
+          <button type="submit" class="icon-button" aria-label="关闭" title="关闭">×</button>
+        </header>
+        <div class="database-import-summary" aria-live="polite">
+          <div><span>来源事项</span><strong id="database-import-task-count">0</strong></div>
+          <div><span>来源记录</span><strong id="database-import-session-count">0</strong></div>
+          <div><span>重复记录</span><strong id="database-import-duplicate-count">0</strong></div>
+          <div><span>时间冲突</span><strong id="database-import-conflict-count">0</strong></div>
+        </div>
+        <section id="database-import-conflicts" class="database-import-conflicts" hidden>
+          <div class="database-import-conflict-heading">
+            <strong>发现同时进行的专注记录</strong>
+            <span>合并时请选择保留本机记录还是导入记录。</span>
+          </div>
+          <div id="database-import-conflict-list" class="database-import-conflict-list"></div>
+        </section>
+        <p class="database-import-note">
+          相同层级和名称的事项会归并为同一个事项；完全相同的专注记录不会重复导入。
+        </p>
+        <div class="dialog-actions database-import-actions">
+          <button type="submit">取消</button>
+          <button type="button" id="database-import-overwrite" class="danger" hidden>
+            覆盖本机数据
+          </button>
+          <button type="button" id="database-import-keep-current" class="primary">
+            合并并保留本机冲突记录
+          </button>
+          <button type="button" id="database-import-keep-imported" class="primary" hidden>
+            合并并保留导入冲突记录
+          </button>
         </div>
       </form>
     </dialog>
@@ -791,6 +841,9 @@
         <div class="dialog-actions"><button class="primary" type="submit">确定</button></div>
       </form>
     </dialog>
+    <script src="database-transfer.js"></script>
+    <script src="vendor/sql.js/sql-wasm.js"></script>
+    <script src="mobile-database.js"></script>
     <script src="mobile-bridge.js"></script>
     <script src="i18n.js"></script>
     <script src="renderer.js"></script>

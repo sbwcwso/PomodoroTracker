@@ -7,6 +7,7 @@ module.exports = [
       'dist/**',
       'android/app/src/main/assets/public/**',
       'android/**/build/**',
+      'src/renderer/vendor/**',
     ],
   },
   js.configs.recommended,

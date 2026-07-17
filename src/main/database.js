@@ -1,4 +1,5 @@
 const Database = require('better-sqlite3');
+const { mergeSnapshots, normalizeSnapshot } = require('../renderer/database-transfer');
 
 function formatLocalDate(date) {
   const year = date.getFullYear();
@@ -635,6 +636,75 @@ class AppDatabase {
     `,
       )
       .get();
+  }
+
+  exportSnapshot() {
+    return normalizeSnapshot({
+      tasks: this.db.prepare('SELECT * FROM tasks ORDER BY parent_id, sort_order, id').all(),
+      sessions: this.db.prepare('SELECT * FROM pomodoro_sessions ORDER BY id').all(),
+    });
+  }
+
+  static readSnapshot(filePath) {
+    const source = new Database(filePath, { readonly: true, fileMustExist: true });
+    try {
+      const tables = new Set(
+        source
+          .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
+          .all()
+          .map((entry) => entry.name),
+      );
+      if (!tables.has('tasks') || !tables.has('pomodoro_sessions')) {
+        throw new Error('所选文件不是番茄钟数据库');
+      }
+      return normalizeSnapshot({
+        tasks: source.prepare('SELECT * FROM tasks ORDER BY id').all(),
+        sessions: source.prepare('SELECT * FROM pomodoro_sessions ORDER BY id').all(),
+      });
+    } finally {
+      source.close();
+    }
+  }
+
+  previewMerge(filePath) {
+    const result = mergeSnapshots(this.exportSnapshot(), AppDatabase.readSnapshot(filePath));
+    return { summary: result.summary, conflicts: result.conflicts };
+  }
+
+  replaceSnapshot(snapshot) {
+    const normalized = normalizeSnapshot(snapshot);
+    const replace = this.db.transaction(() => {
+      this.db.prepare('DELETE FROM pomodoro_sessions').run();
+      this.db.prepare('DELETE FROM tasks').run();
+      const insertTask = this.db.prepare(`
+        INSERT INTO tasks
+          (id, parent_id, title, notes, status, focus_minutes, break_minutes, sort_order,
+           created_at, completed_at, is_group, is_default_group)
+        VALUES
+          (@id, @parent_id, @title, @notes, @status, @focus_minutes, @break_minutes, @sort_order,
+           @created_at, @completed_at, @is_group, @is_default_group)
+      `);
+      normalized.tasks.forEach((task) => insertTask.run(task));
+      const insertSession = this.db.prepare(`
+        INSERT INTO pomodoro_sessions
+          (id, task_id, duration_seconds, started_at, completed_at, counts_as_pomodoro, note)
+        VALUES
+          (@id, @task_id, @duration_seconds, @started_at, @completed_at, @counts_as_pomodoro, @note)
+      `);
+      normalized.sessions.forEach((session) => insertSession.run(session));
+    });
+    replace();
+    return normalized;
+  }
+
+  mergeFromFile(filePath, conflictPolicy = 'keep-current') {
+    const result = mergeSnapshots(
+      this.exportSnapshot(),
+      AppDatabase.readSnapshot(filePath),
+      conflictPolicy,
+    );
+    this.replaceSnapshot(result.snapshot);
+    return result.summary;
   }
 
   close() {
