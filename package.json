@@ -1,7 +1,7 @@
 {
   "name": "pomodoro-tracker",
   "desktopName": "Pomodoro Tracker",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A bilingual, local-first Pomodoro tracker with hierarchical tasks and focus analytics",
   "author": "sbwcwso",
   "homepage": "https://github.com/sbwcwso/PomodoroTracker#readme",
