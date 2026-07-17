@@ -32,6 +32,10 @@ const NATURE_SOUND_FILES = Object.freeze({
   thunderstorm: 'thunderstorm.ogg',
   wind: 'wind.ogg',
   fireplace: 'fireplace.ogg',
+  'ocean-waves': 'ocean-waves.ogg',
+  'forest-birds': 'forest-birds.ogg',
+  'night-crickets': 'night-crickets.ogg',
+  waterfall: 'waterfall.ogg',
 });
 
 function defaultDatabasePath() {

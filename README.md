@@ -134,8 +134,9 @@ focus history but remain editable.
 - **General:** switch language and adjust interface scaling. Shortcuts are `Ctrl++`, `Ctrl+-`, and
   `Ctrl+0`.
 - **Timer:** set default durations and whether the mini timer stays above other windows.
-- **Sound:** choose focus/break completion audio and mix rain, stream, wind, thunderstorm, or
-  fireplace ambience. Nature sounds play only during focus and fade out for breaks.
+- **Sound:** choose focus/break completion audio and mix rain, stream, wind, thunderstorm,
+  fireplace, ocean waves, forest birds, night crickets, or waterfall ambience. Nature sounds
+  play only during focus and fade out for breaks.
 - **Data:** configure the first day of the week or select an existing SQLite database. Selecting an
   existing file opens that database; it does not overwrite it.
 
@@ -326,7 +327,7 @@ Windows 安装器中选择的语言会用于软件首次启动，之后可在 **
 
 - **常规：** 切换界面语言和缩放比例；快捷键为 `Ctrl++`、`Ctrl+-` 和 `Ctrl+0`。
 - **番茄钟：** 设置全局默认时长，以及计时小窗是否保持置顶。
-- **声音：** 选择专注/休息结束提示音，并混合大雨、森林雨、溪流、雷雨、风声和壁炉等环境声。自然声仅在专注期间播放，进入休息时会自动淡出。
+- **声音：** 选择专注/休息结束提示音，并混合大雨、森林雨、溪流、雷雨、风声、壁炉、海浪、森林鸟鸣、夜间虫鸣和瀑布等环境声。自然声仅在专注期间播放，进入休息时会自动淡出。
 - **数据：** 设置每周起始日，或选择已有 SQLite 数据库。选择已有文件会直接打开该数据库，不会覆盖它。
 
 备份时请先关闭软件，然后将 `pomodoro.sqlite3` 复制到安全位置。更换电脑时复制该文件，并在 **设置 → 数据** 中选择它即可。替换或手工修改数据库前务必保留备份。

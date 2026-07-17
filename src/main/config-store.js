@@ -13,6 +13,10 @@ const NATURE_SOUND_IDS = Object.freeze([
   'thunderstorm',
   'wind',
   'fireplace',
+  'ocean-waves',
+  'forest-birds',
+  'night-crickets',
+  'waterfall',
 ]);
 const DEFAULT_NATURE_SOUND_VOLUMES = Object.freeze({
   'heavy-rain': 45,
@@ -21,6 +25,10 @@ const DEFAULT_NATURE_SOUND_VOLUMES = Object.freeze({
   thunderstorm: 0,
   wind: 0,
   fireplace: 0,
+  'ocean-waves': 0,
+  'forest-birds': 0,
+  'night-crickets': 0,
+  waterfall: 0,
 });
 
 const DEFAULT_CONFIG = Object.freeze({

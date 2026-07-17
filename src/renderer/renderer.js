@@ -56,6 +56,10 @@ const NATURE_SOUND_LIBRARY = Object.freeze([
   { id: 'thunderstorm' },
   { id: 'wind' },
   { id: 'fireplace' },
+  { id: 'ocean-waves' },
+  { id: 'forest-birds' },
+  { id: 'night-crickets' },
+  { id: 'waterfall' },
 ]);
 const elements = {
   rootList: document.querySelector('#root-list'),

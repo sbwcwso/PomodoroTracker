@@ -82,6 +82,10 @@ test('persists and normalizes nature sound settings', () => {
     thunderstorm: 0,
     wind: 24,
     fireplace: 0,
+    'ocean-waves': 0,
+    'forest-birds': 0,
+    'night-crickets': 0,
+    waterfall: 0,
   });
   fs.rmSync(directory, { recursive: true });
 });

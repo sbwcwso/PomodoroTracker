@@ -13,6 +13,10 @@
     'thunderstorm',
     'wind',
     'fireplace',
+    'ocean-waves',
+    'forest-birds',
+    'night-crickets',
+    'waterfall',
   ]);
   const settingsChangedListeners = new Set();
   const popupVisibilityListeners = new Set();
@@ -40,6 +44,10 @@
         thunderstorm: 0,
         wind: 0,
         fireplace: 0,
+        'ocean-waves': 0,
+        'forest-birds': 0,
+        'night-crickets': 0,
+        waterfall: 0,
       },
       weekStartDay: 1,
       taskGroups: [],
